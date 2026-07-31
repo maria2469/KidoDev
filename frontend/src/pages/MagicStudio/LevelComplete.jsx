@@ -346,15 +346,17 @@ export function LevelComplete({ data = {}, onClose, onKeepPlaying }) {
 const styles = {
     backdrop: (visible) => ({
         position: 'fixed', inset: 0, zIndex: 10000,
-        background: 'rgba(2, 6, 23, 0.65)', backdropFilter: 'blur(8px)',
+        background: 'transparent', backdropFilter: 'none',
+        pointerEvents: 'none',
         display: 'flex', justifyContent: 'center', alignItems: 'center',
         padding: '16px', opacity: visible ? 1 : 0, transition: 'opacity 0.35s ease',
     }),
-    clickZone: { position: 'absolute', inset: 0 },
+    clickZone: { position: 'absolute', inset: 0, pointerEvents: 'none' },
     card: (visible, accent) => ({
         position: 'relative', background: '#FFFFFF', width: '100%', maxWidth: 440,
         borderRadius: 20, padding: '28px 24px 24px',
-        boxShadow: '0 32px 64px rgba(0,0,0,0.25), 0 0 0 1px rgba(0,0,0,0.06)',
+        boxShadow: '0 20px 50px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.06)',
+        pointerEvents: 'auto',
         transform: visible ? 'scale(1) translateY(0)' : 'scale(0.92) translateY(16px)',
         transition: 'transform 0.4s cubic-bezier(0.34,1.56,0.64,1)',
         display: 'flex', flexDirection: 'column', gap: 20,

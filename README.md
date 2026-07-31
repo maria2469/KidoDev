@@ -101,7 +101,7 @@ kidodev/
 │   │   ├── agents/             # Frontend Agent Orchestrator & Memory Store
 │   │   ├── components/         # Reusable UI components
 │   │   ├── pages/
-│   │   │   ├── Admin/          # Admin Dashboard, AMD Benchmark, & Live Agent Feed
+│   │   │   ├── Admin/          # Admin Dashboard
 │   │   │   ├── Auth/           # Parent & School dashboards
 │   │   │   ├── Games/          # Canvas mini-games (Donut, Traffic, Maze)
 │   │   │   ├── MagicStudio/    # Blockly studio with Multi-turn Agent & Sprite Guide

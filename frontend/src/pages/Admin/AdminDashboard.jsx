@@ -8,8 +8,6 @@ import AdminContent from './views/AdminContent';
 import AdminSettings from './views/AdminSettings';
 import AdminLessons from './views/AdminLessons';
 import AdminProjectManager from './views/AdminProjectManager';
-import AmdBenchmark from './views/AmdBenchmark';
-import AgentActivityFeed from './views/AgentActivityFeed';
 import './AdminDashboard.css';
 
 const NAV_ITEMS = [
@@ -19,8 +17,6 @@ const NAV_ITEMS = [
     { id: 'users', label: 'User Base' },
     { id: 'content', label: 'Publish' },
     { id: 'settings', label: 'Access' },
-    { id: 'amd', label: 'AMD Engine', badge: 'AI' },
-    { id: 'agentfeed', label: 'Agent Feed', badge: 'Live' },
 ];
 
 const AdminDashboard = () => {
@@ -91,8 +87,6 @@ const AdminDashboard = () => {
             case 'users': return <AdminUsers />;
             case 'content': return <AdminContent />;
             case 'settings': return <AdminSettings />;
-            case 'amd': return <AmdBenchmark />;
-            case 'agentfeed': return <AgentActivityFeed />;
             default: return <AdminOverview />;
         }
     };

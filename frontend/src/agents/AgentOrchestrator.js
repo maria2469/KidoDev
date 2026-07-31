@@ -174,26 +174,159 @@ export async function requestGrade({ lessonId, workspaceXml, helpedBlockTypes, t
   }
 }
 
+const curriculumCache = new Map();
+
 // ─── CurriculumPlannerAgent ────────────────────────────────────────────────────
-export async function requestCurriculum({ completedLessons, weakBlockTypes, strongBlockTypes, level, totalXp }) {
-  const childId = getChildId();
-  const backendOk = await checkBackend();
+export async function requestCurriculum({ childId: customChildId, completedLessons, weakBlockTypes, strongBlockTypes, level, totalXp, totalCompleted, forceRefresh = false }) {
+  const childId = customChildId || getChildId() || 'default_child';
 
-  if (!childId || !backendOk) return null;
-
-  try {
-    return await agentRequest('/agent/curriculum', {
-      child_id: childId,
-      completed_lessons: completedLessons || [],
-      weak_block_types: weakBlockTypes || [],
-      strong_block_types: strongBlockTypes || [],
-      current_level: level || 'Bronze',
-      total_xp: totalXp || 0,
-    });
-  } catch (err) {
-    console.error('[AgentOrchestrator] CurriculumAgent error:', err);
-    return null;
+  // Return cached result if already fetched once for this child
+  if (!forceRefresh && curriculumCache.has(childId)) {
+    return curriculumCache.get(childId);
   }
+
+  const backendOk = await checkBackend();
+  let result = null;
+
+  if (childId && backendOk) {
+    try {
+      const res = await agentRequest('/agent/curriculum', {
+        child_id: childId,
+        completed_lessons: completedLessons || [],
+        weak_block_types: weakBlockTypes || [],
+        strong_block_types: strongBlockTypes || [],
+        current_level: level || 'Bronze',
+        total_xp: totalXp || 0,
+      });
+      if (res && res.learning_path_summary) {
+        result = res;
+      }
+    } catch (err) {
+      console.warn('[AgentOrchestrator] CurriculumAgent error, fallback enabled:', err);
+    }
+  }
+
+  if (!result) {
+    result = _generateFallbackCurriculum({ completedLessons, level, totalXp, totalCompleted });
+  }
+
+  curriculumCache.set(childId, result);
+  return result;
+}
+
+function _generateFallbackCurriculum({ completedLessons = [], level = 'Bronze', totalXp = 0, totalCompleted = 0 }) {
+  const count = Math.max(completedLessons.length, Number(totalCompleted) || 0);
+
+  if (count === 0 && totalXp === 0) {
+    return {
+      learning_path_summary: "No completed lessons recorded in the database yet. As soon as your child finishes their first challenge, AI will analyze their exact scores, badges, and block usage.",
+      weekly_goal: "Complete Lesson 1: First Code Steps",
+      next_challenge: "Basic Movement & Sound Blocks",
+      strengths: ["Curiosity & Exploration", "Interface Navigation"],
+      skill_gaps: ["Initial Block Sequence Creation", "Following Mission Objectives"],
+      recommended_lessons: [
+        { lesson_id: 'lesson_1', title: 'Sprite Movement Basics', reason: 'Recommended starter lesson for new explorers', priority: 'high' },
+        { lesson_id: 'lesson_2', title: 'Loop & Repeat Magic', reason: 'Learn how to repeat actions easily', priority: 'medium' },
+      ],
+    };
+  }
+
+  // 1. Calculate Score Metrics from DB records
+  const scores = completedLessons.map(c => Number(c.score) || 0);
+  const avgScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 85;
+  const goldCount = completedLessons.filter(c => (Number(c.score) >= 85 || String(c.badge || '').includes('Gold'))).length;
+  const lowCount = completedLessons.filter(c => Number(c.score) < 65).length;
+  const xp = totalXp || (count * 50);
+
+  // 2. Trend analysis from last 3 completed lessons in DB
+  const recent = completedLessons.slice(-3);
+  const recentAvg = recent.length > 0 ? Math.round(recent.reduce((a, c) => a + (Number(c.score) || 0), 0) / recent.length) : avgScore;
+  let trendStr = 'stable';
+  if (recentAvg > avgScore + 5) trendStr = 'improving rapidly';
+  else if (recentAvg < avgScore - 5) trendStr = 'needing review';
+
+  // 3. Analyze Helped / Weak Block Types from DB records
+  const helpedBlocksMap = {};
+  completedLessons.forEach(c => {
+    const helped = c.helped_block_types || c.helpedBlocks || [];
+    if (Array.isArray(helped)) {
+      helped.forEach(b => {
+        helpedBlocksMap[b] = (helpedBlocksMap[b] || 0) + 1;
+      });
+    }
+  });
+
+  const sortedWeakBlocks = Object.keys(helpedBlocksMap).sort((a, b) => helpedBlocksMap[b] - helpedBlocksMap[a]);
+
+  // Block human labels map
+  const blockNameMap = {
+    s_repeat: 'Repeat Loops',
+    s_forever: 'Forever Loops',
+    s_wait: 'Wait & Timing Delays',
+    s_if: 'If / Else Conditionals',
+    s_touching_color: 'Color Touch Sensing',
+    s_goto_xy: 'XY Coordinate Positioning',
+    s_say: 'Speech & Sound Triggers',
+    s_when_flag: 'Event Flag Starting',
+  };
+
+  // 4. Generate Dynamic Strengths from DB data
+  const strengths = [];
+  if (avgScore >= 80) strengths.push(`High Code Accuracy (${avgScore}% Avg Score)`);
+  if (goldCount > 0) strengths.push(`Gold Badge Mastery (${goldCount} Top Lessons)`);
+  if (count >= 5) strengths.push(`Advanced Level Progress (${count} Missions Finished)`);
+  if (xp >= 150) strengths.push(`Strong Learning Stamina (${xp} Total XP)`);
+  if (sortedWeakBlocks.length === 0) strengths.push(`Independent Problem Solving & Execution`);
+  if (strengths.length < 3) strengths.push('Visual Block Sequence Logic', 'Active Platform Engagement');
+
+  // 5. Generate Dynamic Skill Gaps / Weaknesses from DB data
+  const skill_gaps = [];
+  sortedWeakBlocks.forEach(b => {
+    const label = blockNameMap[b] || b.replace(/^s_/, '').replace(/_/g, ' ');
+    skill_gaps.push(`${label} (Hint requested ${helpedBlocksMap[b]}x)`);
+  });
+
+  if (lowCount > 0) skill_gaps.push(`Low Score Review Needed (${lowCount} Lesson(s) < 65%)`);
+  if (skill_gaps.length < 2) {
+    skill_gaps.push('Multi-Sprite Event Signal Broadcasting');
+    skill_gaps.push('Optimizing Script Execution Speed');
+  }
+
+  // 6. Generate Summary Paragraph from DB metrics
+  let summary = `Outstanding progress! Your child has completed ${count} mission(s) with ${xp} total XP and an average score of ${avgScore}%. `;
+  if (goldCount > 0) {
+    summary += `They have earned Gold tier mastery in ${goldCount} project(s). `;
+  }
+  if (trendStr === 'improving rapidly') {
+    summary += `Recent performance shows a strong upward trend! `;
+  }
+  if (sortedWeakBlocks.length > 0) {
+    const topWeak = blockNameMap[sortedWeakBlocks[0]] || sortedWeakBlocks[0];
+    summary += `Targeted practice on ${topWeak} will help unlock their next level tier.`;
+  } else {
+    summary += `They demonstrate strong logical reasoning and master complex coding concepts quickly!`;
+  }
+
+  // 7. Goals and Next Challenge
+  const goal = sortedWeakBlocks.length > 0
+    ? `Master ${blockNameMap[sortedWeakBlocks[0]] || 'Timing & Control'} Blocks`
+    : `Complete the Final Level Challenge with >90% Score`;
+
+  const challenge = sortedWeakBlocks.length > 0
+    ? `Complete 1 Challenge without using Hint assistance`
+    : `Unlock Gold Master Badge Tier`;
+
+  return {
+    learning_path_summary: summary,
+    weekly_goal: goal,
+    next_challenge: challenge,
+    strengths,
+    skill_gaps,
+    recommended_lessons: [
+      { lesson_id: 'lesson_1', title: 'Sprite Motion & Directions', reason: 'Reinforce foundational movement accuracy', priority: avgScore < 70 ? 'high' : 'medium' },
+      { lesson_id: 'lesson_2', title: 'Repeat Loop Challenge', reason: sortedWeakBlocks.includes('s_repeat') ? 'Targeted practice for identified loop weakness' : 'Practice loop block efficiency', priority: 'high' },
+    ],
+  };
 }
 
 // ─── EngagementAgent ──────────────────────────────────────────────────────────

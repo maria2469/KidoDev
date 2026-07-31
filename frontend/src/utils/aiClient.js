@@ -24,52 +24,81 @@ const parseAIJson = (rawStr) => {
     }
 };
 
+const inFlightPromotions = new Map();
+const fireworksCache = new Map();
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes cache TTL
+
 /**
- * Core function to communicate with Fireworks API with automatic fallback
+ * Core function to communicate with Fireworks API with automatic fallback & deduplication
  */
 const getFireworksCompletion = async (systemPrompt, userPrompt, useFallback = false) => {
-    const selectedModel = useFallback ? FALLBACK_MODEL : MODEL_ID;
-    try {
-        const response = await fetch(FIREWORKS_API_URL, {
-            method: "POST",
-            headers: {
-                "Accept": "application/json",
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${FIREWORKS_API_KEY}`
-            },
-            body: JSON.stringify({
-                model: selectedModel,
-                max_tokens: 4096,
-                top_k: 40,
-                presence_penalty: 0,
-                frequency_penalty: 0,
-                messages: [
-                    { role: "system", content: systemPrompt },
-                    { role: "user", content: userPrompt }
-                ]
-            })
-        });
+    const cacheKey = `${useFallback ? 'fallback' : 'primary'}_${systemPrompt}_${userPrompt}`;
 
-        if (!response.ok) {
-            const errData = await response.json().catch(() => ({}));
-            const msg = errData.error?.message || `Fireworks API error: ${response.status}`;
+    // Return cached response if valid
+    if (fireworksCache.has(cacheKey)) {
+        const entry = fireworksCache.get(cacheKey);
+        if (Date.now() - entry.timestamp < CACHE_TTL_MS) {
+            return entry.result;
+        }
+        fireworksCache.delete(cacheKey);
+    }
+
+    // Return pending in-flight promise if duplicate request is currently executing
+    if (inFlightPromotions.has(cacheKey)) {
+        return inFlightPromotions.get(cacheKey);
+    }
+
+    const fetchPromise = (async () => {
+        const selectedModel = useFallback ? FALLBACK_MODEL : MODEL_ID;
+        try {
+            const response = await fetch(FIREWORKS_API_URL, {
+                method: "POST",
+                headers: {
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${FIREWORKS_API_KEY}`
+                },
+                body: JSON.stringify({
+                    model: selectedModel,
+                    max_tokens: 4096,
+                    top_k: 40,
+                    presence_penalty: 0,
+                    frequency_penalty: 0,
+                    messages: [
+                        { role: "system", content: systemPrompt },
+                        { role: "user", content: userPrompt }
+                    ]
+                })
+            });
+
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                const msg = errData.error?.message || `Fireworks API error: ${response.status}`;
+                if (!useFallback) {
+                    console.warn(`[aiClient] Model '${selectedModel}' failed (${msg}). Retrying with fallback '${FALLBACK_MODEL}'...`);
+                    return getFireworksCompletion(systemPrompt, userPrompt, true);
+                }
+                throw new Error(msg);
+            }
+
+            const data = await response.json();
+            const result = data.choices?.[0]?.message?.content || '';
+            fireworksCache.set(cacheKey, { result, timestamp: Date.now() });
+            return result;
+        } catch (err) {
             if (!useFallback) {
-                console.warn(`[aiClient] Model '${selectedModel}' failed (${msg}). Retrying with fallback '${FALLBACK_MODEL}'...`);
+                console.warn(`[aiClient] Network error with '${selectedModel}'. Retrying with fallback '${FALLBACK_MODEL}'...`, err.message);
                 return getFireworksCompletion(systemPrompt, userPrompt, true);
             }
-            throw new Error(msg);
+            console.error('Fireworks AI Error:', err);
+            throw err;
+        } finally {
+            inFlightPromotions.delete(cacheKey);
         }
+    })();
 
-        const data = await response.json();
-        return data.choices?.[0]?.message?.content || '';
-    } catch (err) {
-        if (!useFallback) {
-            console.warn(`[aiClient] Network error with '${selectedModel}'. Retrying with fallback '${FALLBACK_MODEL}'...`, err.message);
-            return getFireworksCompletion(systemPrompt, userPrompt, true);
-        }
-        console.error('Fireworks AI Error:', err);
-        throw err;
-    }
+    inFlightPromotions.set(cacheKey, fetchPromise);
+    return fetchPromise;
 };
 
 /**

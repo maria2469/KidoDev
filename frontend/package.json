@@ -31,7 +31,6 @@
     "recharts": "^3.8.1",
     "sass": "^1.97.3",
     "sharp": "^0.34.5",
-    "supabase": "^2.76.15",
     "three": "^0.183.2"
   },
   "devDependencies": {

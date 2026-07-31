@@ -118,16 +118,25 @@ async def get_agent_memory(child_id: str) -> Dict[str, Any]:
     return await load_memory(child_id)
 
 
+DEFAULT_LESSONS = [
+    {"id": "L1P1", "title": "First Code Steps", "objective": "Basic sprite motion and sound", "class_level": 1, "order_index": 1},
+    {"id": "L1P2", "title": "Loop & Repeat Magic", "objective": "Using repeat loops for efficiency", "class_level": 1, "order_index": 2},
+    {"id": "L1P3", "title": "Obstacle Dodge Challenge", "objective": "If/Else conditional sensing", "class_level": 1, "order_index": 3},
+    {"id": "L2P1", "title": "Multi-Sprite Animation", "objective": "Event broadcasts and timing delays", "class_level": 2, "order_index": 1},
+    {"id": "L2P2", "title": "Catch the Donut Game", "objective": "Variables, scoring and color collision", "class_level": 2, "order_index": 2},
+]
+
 async def get_all_lessons() -> List[Dict[str, Any]]:
     sb = _sb()
-    if not sb:
-        return []
-    try:
-        res = sb.table("lessons").select("id, title, objective, class_level, order_index") \
-            .order("class_level").order("order_index").execute()
-        return res.data or []
-    except Exception as e:
-        return []
+    if sb:
+        try:
+            res = sb.table("lessons").select("id, title, objective, class_level, order_index") \
+                .order("class_level").order("order_index").execute()
+            if res.data:
+                return res.data
+        except Exception:
+            pass
+    return DEFAULT_LESSONS
 
 
 async def get_completed_lessons(child_id: str) -> List[Dict[str, Any]]:

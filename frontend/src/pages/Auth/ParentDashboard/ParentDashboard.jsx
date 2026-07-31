@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../../utils/supabaseClient';
 import { useNavigate } from 'react-router-dom';
+import { requestCurriculum } from '../../../agents/AgentOrchestrator';
 import {
     FaUserGraduate, FaChartLine, FaKey, FaSignOutAlt,
     FaStar, FaTrophy, FaUsers, FaShieldAlt, FaLock, FaCog,
@@ -302,10 +303,129 @@ const EmptyNote = ({ children }) => (
 );
 
 /* ─────────────────────────────────────
-   PROGRESS MODAL  — restyled to match
-   school dashboard credential modal
+   AI CHILD INSIGHTS PANEL (Strengths & Weaknesses)
+   ───────────────────────────────────── */
+const insightsCache = {};
+
+const AiChildInsightsPanel = ({ child, completions }) => {
+    const [loading, setLoading] = useState(!insightsCache[child?.id]);
+    const [curriculum, setCurriculum] = useState(insightsCache[child?.id] || null);
+
+    useEffect(() => {
+        if (!child?.id) return;
+
+        // Reuse cached result if already fetched once
+        if (insightsCache[child.id]) {
+            setCurriculum(insightsCache[child.id]);
+            setLoading(false);
+            return;
+        }
+
+        let isMounted = true;
+        const fetchInsights = async () => {
+            setLoading(true);
+            try {
+                const childComps = completions[child.id] || [];
+                const data = await requestCurriculum({
+                    childId: child.id,
+                    completedLessons: childComps,
+                    level: child.current_level || `Class ${child.numericLevel || 1}`,
+                    totalXp: child.totalXp || (child.total_xp || 0),
+                    totalCompleted: child.totalCompleted || childComps.length,
+                });
+                insightsCache[child.id] = data;
+                if (isMounted) setCurriculum(data);
+            } catch (e) {
+                console.warn("Curriculum fetch error:", e);
+            } finally {
+                if (isMounted) setLoading(false);
+            }
+        };
+        fetchInsights();
+        return () => { isMounted = false; };
+    }, [child?.id]);
+
+    if (loading) return (
+        <div style={{ textAlign: 'center', padding: '24px 16px', background: '#F8FAFC', borderRadius: 16, border: '1px solid #E2E8F0', marginBottom: 20 }}>
+            <FaCircleNotch className="fa-spin-custom text-primary mb-2" size={22} />
+            <div style={{ fontSize: '0.82rem', color: '#64748B', fontWeight: 700 }}>
+                AI is evaluating {child.name}'s strengths &amp; areas to improve...
+            </div>
+        </div>
+    );
+
+    if (!curriculum) return null;
+
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 20 }}>
+            {/* AI Learning Summary */}
+            <div style={{
+                background: 'linear-gradient(135deg, #EFF6FF 0%, #E0F2FE 100%)',
+                border: '1.5px solid #BAE6FD',
+                borderRadius: 18, padding: '16px',
+                boxShadow: '0 4px 14px rgba(2,132,199,0.06)'
+            }}>
+                <div style={{ fontWeight: 900, fontSize: '0.8rem', color: '#0284C7', marginBottom: 8, letterSpacing: '0.05em', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span>🧠</span> AI Learning Summary
+                </div>
+                <div style={{ fontSize: '0.85rem', color: '#0F172A', fontWeight: 600, lineHeight: 1.6, marginBottom: 12 }}>
+                    {curriculum.learning_path_summary}
+                </div>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    {curriculum.weekly_goal && (
+                        <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 12, padding: '8px 12px', flex: 1, minWidth: 140 }}>
+                            <div style={{ color: '#166534', fontWeight: 900, fontSize: '0.68rem', textTransform: 'uppercase', marginBottom: 2 }}>Weekly Goal</div>
+                            <div style={{ color: '#15803D', fontSize: '0.8rem', fontWeight: 800 }}>{curriculum.weekly_goal}</div>
+                        </div>
+                    )}
+                    {curriculum.next_challenge && (
+                        <div style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 12, padding: '8px 12px', flex: 1, minWidth: 140 }}>
+                            <div style={{ color: '#92400E', fontWeight: 900, fontSize: '0.68rem', textTransform: 'uppercase', marginBottom: 2 }}>Next Challenge</div>
+                            <div style={{ color: '#B45309', fontSize: '0.8rem', fontWeight: 800 }}>{curriculum.next_challenge}</div>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Strengths & Weaknesses Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                {/* Strengths */}
+                <div style={{ background: '#F0FDF4', border: '1.5px solid #BBF7D0', borderRadius: 18, padding: '16px' }}>
+                    <div style={{ fontWeight: 900, fontSize: '0.82rem', color: '#15803D', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <FaCheckCircle color="#10B981" /> Strengths
+                    </div>
+                    {curriculum.strengths?.length > 0 ? curriculum.strengths.map((s, i) => (
+                        <div key={i} style={{ background: '#FFFFFF', border: '1px solid #DCFCE7', borderRadius: 10, padding: '8px 10px', marginBottom: 6, fontSize: '0.78rem', fontWeight: 700, color: '#166534', display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ color: '#22c55e' }}>✓</span> {s}
+                        </div>
+                    )) : (
+                        <div style={{ fontSize: '0.78rem', color: '#64748B', fontStyle: 'italic' }}>Complete more lessons to reveal strengths.</div>
+                    )}
+                </div>
+
+                {/* Weaknesses / Skill Gaps */}
+                <div style={{ background: '#FEF2F2', border: '1.5px solid #FECACA', borderRadius: 18, padding: '16px' }}>
+                    <div style={{ fontWeight: 900, fontSize: '0.82rem', color: '#B91C1C', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <FaExclamationTriangle color="#EF4444" /> Areas to Improve
+                    </div>
+                    {curriculum.skill_gaps?.length > 0 ? curriculum.skill_gaps.map((g, i) => (
+                        <div key={i} style={{ background: '#FFFFFF', border: '1px solid #FEE2E2', borderRadius: 10, padding: '8px 10px', marginBottom: 6, fontSize: '0.78rem', fontWeight: 700, color: '#991B1B', display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ color: '#ef4444' }}>•</span> {g}
+                        </div>
+                    )) : (
+                        <div style={{ fontSize: '0.78rem', color: '#64748B', fontStyle: 'italic' }}>No specific gaps identified yet.</div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+/* ─────────────────────────────────────
+   PROGRESS MODAL  — restyled with AI Insights
    ───────────────────────────────────── */
 const ProgressModal = ({ child, allLessons, completions, onClose }) => {
+    const [activeTab, setActiveTab] = useState('insights'); // 'insights' or 'lessons'
     const level = numericLevel(child.current_level);
     const levelName = LEVEL_NAMES[level] || 'Explorer';
     const childComps = completions[child.id] || [];
@@ -318,10 +438,10 @@ const ProgressModal = ({ child, allLessons, completions, onClose }) => {
         <div className="modal-overlay-premium" onClick={onClose}>
             <div
                 className="modal-card-premium card border-0 shadow-2xl rounded-5 bg-white overflow-hidden"
-                style={{ maxWidth: '520px' }}
+                style={{ maxWidth: '540px' }}
                 onClick={e => e.stopPropagation()}
             >
-                {/* ── Header bar — same pattern as school credential modal ── */}
+                {/* ── Header bar ── */}
                 <div
                     className="p-3 px-4 text-white d-flex justify-content-between align-items-center position-relative"
                     style={{ background: headerBg }}
@@ -375,9 +495,33 @@ const ProgressModal = ({ child, allLessons, completions, onClose }) => {
                     </div>
                 </div>
 
+                {/* ── Tab Switcher ── */}
+                <div className="px-4 pt-3 pb-0 bg-white border-bottom">
+                    <div className="d-flex p-1 bg-light rounded-4 border">
+                        <button
+                            onClick={() => setActiveTab('insights')}
+                            className={`btn flex-fill py-2 rounded-4 fw-black border-0 small transition-all ${activeTab === 'insights' ? 'btn-white shadow text-primary' : 'text-muted'}`}
+                            style={{ fontSize: '0.78rem' }}
+                        >
+                            🧠 AI INSIGHTS &amp; STRENGTHS
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('lessons')}
+                            className={`btn flex-fill py-2 rounded-4 fw-black border-0 small transition-all ${activeTab === 'lessons' ? 'btn-white shadow text-primary' : 'text-muted'}`}
+                            style={{ fontSize: '0.78rem' }}
+                        >
+                            📚 LESSON ROADMAP
+                        </button>
+                    </div>
+                </div>
+
                 {/* ── Scrollable body ── */}
                 <div className="progress-modal-body p-3 p-md-4">
-                    <LessonDetailPanel child={child} allLessons={allLessons} completions={completions} />
+                    {activeTab === 'insights' ? (
+                        <AiChildInsightsPanel child={child} completions={completions} />
+                    ) : (
+                        <LessonDetailPanel child={child} allLessons={allLessons} completions={completions} />
+                    )}
                 </div>
             </div>
         </div>
@@ -541,20 +685,39 @@ const ParentDashboard = () => {
                 .select('id, title, objective, steps, class_level, order_index, is_prompt_project, perfect_prompt, prompt_milestones');
             setAllLessons(lessonsData || []);
 
-            const childIds = childrenData.map(c => c.id);
+            const childIds = childrenData.map(c => c.id).filter(Boolean);
+            const secretKeys = childrenData.map(c => c.secret_key).filter(Boolean);
+            const queryIds = Array.from(new Set([...childIds, ...secretKeys]));
+
             let completionsData = [];
-            if (childIds.length > 0) {
-                const { data, error: completionsError } = await supabase
-                    .from('lesson_completions').select('*').in('child_id', childIds);
-                if (!completionsError && data) {
-                    completionsData = data;
-                }
+            if (queryIds.length > 0) {
+                const [byChild, byUser] = await Promise.all([
+                    supabase.from('lesson_completions').select('*').in('child_id', queryIds),
+                    supabase.from('lesson_completions').select('*').in('user_id', queryIds)
+                ]);
+                const map = new Map();
+                (byChild.data || []).forEach(item => {
+                    const key = `${item.child_id || item.user_id}_${item.lesson_id}`;
+                    map.set(key, item);
+                });
+                (byUser.data || []).forEach(item => {
+                    const key = `${item.child_id || item.user_id}_${item.lesson_id}`;
+                    map.set(key, item);
+                });
+                completionsData = Array.from(map.values());
             }
 
             const groupedCompletions = {};
-            completionsData?.forEach(comp => {
-                if (!groupedCompletions[comp.child_id]) groupedCompletions[comp.child_id] = [];
-                groupedCompletions[comp.child_id].push(comp);
+            completionsData.forEach(comp => {
+                const matchedChild = childrenData.find(c =>
+                    c.id === comp.child_id || c.id === comp.user_id ||
+                    c.secret_key === comp.child_id || c.secret_key === comp.user_id
+                );
+                const cId = matchedChild ? matchedChild.id : (comp.child_id || comp.user_id);
+                if (cId) {
+                    if (!groupedCompletions[cId]) groupedCompletions[cId] = [];
+                    groupedCompletions[cId].push(comp);
+                }
             });
             setCompletions(groupedCompletions);
 
