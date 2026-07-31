@@ -61,10 +61,43 @@ function ThinkingDots() {
     );
 }
 
+const BLOCK_PLACEMENT_MAP = {
+    "s_when_flag": { name: "Green Flag", pos: "Top of workspace" },
+    "s_when_key": { name: "Key Pressed", pos: "Top of key script" },
+    "s_when_clicked": { name: "Sprite Clicked", pos: "Top of click script" },
+    "s_broadcast": { name: "Broadcast", pos: "Below event trigger" },
+    "s_move": { name: "Move Steps", pos: "Below Green Flag" },
+    "s_turn_r": { name: "Turn Right", pos: "Below Move block" },
+    "s_turn_l": { name: "Turn Left", pos: "Below Move block" },
+    "s_goto": { name: "Go To Position", pos: "Below Green Flag" },
+    "s_change_x": { name: "Change X", pos: "Below Green Flag or in loop" },
+    "s_change_y": { name: "Change Y", pos: "Below Green Flag or in loop" },
+    "s_repeat": { name: "Repeat Loop", pos: "Around motion blocks" },
+    "s_forever": { name: "Forever Loop", pos: "Around main script" },
+    "s_if": { name: "If Condition", pos: "Inside main loop" },
+    "s_if_else": { name: "If-Else", pos: "Inside main loop" },
+    "s_wait": { name: "Wait Timer", pos: "Between action blocks" },
+    "s_say": { name: "Say Message", pos: "Below motion block" },
+    "s_say_time": { name: "Say For Secs", pos: "Below motion block" },
+    "s_next_costume": { name: "Next Costume", pos: "Inside loop next to Move" },
+    "s_touching": { name: "Touching Sensor", pos: "Inside If condition slot" },
+};
+
+function formatBlockPill(blockType) {
+    if (!blockType) return null;
+    const info = BLOCK_PLACEMENT_MAP[blockType];
+    if (info) {
+        return `📍 Place ${info.pos} (${info.name}) 🎯`;
+    }
+    const cleanName = blockType.replace(/^s_/, '').replace(/_/g, ' ');
+    return `📍 Snap ${cleanName} into script 🎯`;
+}
+
 // ─── Main Panel ───────────────────────────────────────────────────────────────
 export default function AgentHintPanel({
     isMobile,
     workspaceBlocks = [],
+    getLiveWorkspaceBlocks,
     objective = '',
     lessonId = '',
     onBlockHighlight,
@@ -95,9 +128,11 @@ export default function AgentHintPanel({
             setInputValue('');
         }
 
+        const activeBlocks = (typeof getLiveWorkspaceBlocks === 'function' ? getLiveWorkspaceBlocks() : null) || workspaceBlocks || [];
+
         try {
             const result = await requestHint({
-                workspaceBlocks,
+                workspaceBlocks: activeBlocks,
                 objective,
                 lessonId,
                 userMessage,
@@ -117,11 +152,6 @@ export default function AgentHintPanel({
             setMessages(prev => [...prev, agentMsg]);
             setLastTrace(result.reasoningTrace || []);
             setGpuInfo({ tokens: result.tokensGenerated, latency: result.latencyMs, gpu: result.gpuType });
-
-            // Highlight next block if callback provided
-            if (result.nextBlockType && onBlockHighlight) {
-                onBlockHighlight(result.nextBlockType);
-            }
         } catch (err) {
             setMessages(prev => [...prev, {
                 role: 'assistant',
@@ -131,12 +161,18 @@ export default function AgentHintPanel({
         } finally {
             setIsThinking(false);
         }
-    }, [workspaceBlocks, objective, lessonId, isThinking, onBlockHighlight]);
+    }, [workspaceBlocks, getLiveWorkspaceBlocks, objective, lessonId, isThinking, onBlockHighlight]);
+
+    const GREETING_MESSAGE = {
+        role: 'assistant',
+        content: "Hi there! I'm KidoBot, your AI coding buddy. How can I help you today? Ask me any question or request a hint!",
+        ts: Date.now(),
+    };
 
     const handleOpenAndHint = () => {
         setIsOpen(true);
         if (messages.length === 0) {
-            sendHintRequest(null);
+            setMessages([{ ...GREETING_MESSAGE, ts: Date.now() }]);
         }
         setTimeout(() => inputRef.current?.focus(), 300);
     };
@@ -151,57 +187,76 @@ export default function AgentHintPanel({
 
     return (
         <>
-            {/* ── Trigger Button ── */}
-            <button
-                onClick={handleOpenAndHint}
-                data-kido-help-btn
-                title="AI Agent Tutor"
-                id="agent-hint-btn"
-                style={{
-                    background: isOpen
-                        ? 'linear-gradient(135deg, #7c3aed, #8b5cf6)'
-                        : 'linear-gradient(135deg, #ff9800, #ffa726)',
-                    border: '2px solid #fff',
-                    borderRadius: 8,
-                    cursor: 'pointer',
-                    padding: '3px',
-                    margin: 0,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    position: 'relative',
-                    width: size,
-                    height: size,
-                    transition: 'all 0.2s ease',
-                    boxShadow: isOpen
-                        ? '0 4px 14px rgba(124,58,237,0.4)'
-                        : '0 4px 10px rgba(255,152,0,0.3)',
-                }}
-            >
-                <CatSvg size={size - 8} isThinking={isThinking && isOpen} />
-                {isThinking && isOpen && (
+            {/* ── Floating Trigger Button (Bottom Right Corner) ── */}
+            <div style={{
+                position: 'fixed',
+                bottom: isMobile ? 16 : 24,
+                right: isMobile ? 16 : 24,
+                zIndex: 9999,
+            }}>
+                <button
+                    onClick={handleOpenAndHint}
+                    data-kido-help-btn
+                    title="Need Help? Click to chat with KidoBot"
+                    id="agent-hint-btn"
+                    style={{
+                        background: 'linear-gradient(135deg, #FF9800 0%, #F97316 100%)',
+                        border: '2px solid #FFFFFF',
+                        borderRadius: 50,
+                        cursor: 'pointer',
+                        padding: '6px 16px 6px 10px',
+                        margin: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        transition: 'all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                        boxShadow: '0 8px 24px rgba(249, 115, 22, 0.35), 0 2px 6px rgba(0, 0, 0, 0.08)',
+                    }}
+                    onMouseEnter={e => {
+                        e.currentTarget.style.transform = 'translateY(-3px) scale(1.05)';
+                        e.currentTarget.style.boxShadow = '0 12px 28px rgba(249, 115, 22, 0.5)';
+                    }}
+                    onMouseLeave={e => {
+                        e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                        e.currentTarget.style.boxShadow = '0 8px 24px rgba(249, 115, 22, 0.35)';
+                    }}
+                >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <CatSvg size={32} isThinking={isThinking && isOpen} />
+                    </div>
                     <span style={{
-                        position: 'absolute', top: -4, right: -4,
-                        width: 10, height: 10, borderRadius: '50%',
-                        background: '#22c55e', border: '2px solid #fff',
-                        animation: 'pulse 1s ease-in-out infinite',
-                    }} />
-                )}
-                <style>{`@keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.3);opacity:0.7}}`}</style>
-            </button>
+                        color: '#FFFFFF',
+                        fontWeight: 800,
+                        fontSize: 14,
+                        fontFamily: 'inherit',
+                        letterSpacing: '-0.2px',
+                        whiteSpace: 'nowrap',
+                    }}>
+                        Need Help?
+                    </span>
+                    {isThinking && isOpen && (
+                        <span style={{
+                            width: 8, height: 8, borderRadius: '50%',
+                            background: '#22C55E', border: '2px solid #FFFFFF',
+                            animation: 'pulse 1s ease-in-out infinite',
+                        }} />
+                    )}
+                    <style>{`@keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.3);opacity:0.7}}`}</style>
+                </button>
+            </div>
 
-            {/* ── Panel Overlay ── */}
+            {/* ── Panel Overlay (Light Theme matching Editor UI) ── */}
             {isOpen && (
                 <div style={{
                     position: 'fixed',
-                    bottom: isMobile ? 60 : 80,
-                    right: isMobile ? 8 : 16,
-                    width: isMobile ? 'calc(100vw - 16px)' : 360,
-                    maxHeight: '65vh',
-                    background: 'linear-gradient(160deg, #1e1b4b 0%, #0f172a 100%)',
-                    border: '1px solid rgba(124,58,237,0.4)',
+                    bottom: isMobile ? 70 : 84,
+                    right: isMobile ? 16 : 24,
+                    width: isMobile ? 'calc(100vw - 32px)' : 380,
+                    maxHeight: '70vh',
+                    background: '#FFFFFF',
+                    border: '1px solid #E2E8F0',
                     borderRadius: 20,
-                    boxShadow: '0 20px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(124,58,237,0.2)',
+                    boxShadow: '0 20px 50px rgba(15, 23, 42, 0.15), 0 4px 12px rgba(0, 0, 0, 0.05)',
                     display: 'flex',
                     flexDirection: 'column',
                     zIndex: 9999,
@@ -212,26 +267,27 @@ export default function AgentHintPanel({
                         @keyframes panelIn{from{opacity:0;transform:translateY(12px) scale(0.96)}to{opacity:1;transform:translateY(0) scale(1)}}
                         .agent-msg-bubble{animation:msgIn 0.2s ease forwards}
                         @keyframes msgIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-                        .agent-input:focus{outline:none;border-color:rgba(124,58,237,0.7)!important;}
-                        .agent-send-btn:hover{background:rgba(124,58,237,0.9)!important;}
-                        .agent-trace-btn:hover{background:rgba(255,255,255,0.08)!important;}
+                        .agent-input:focus{outline:none;border-color:#2563EB!important;box-shadow:0 0 0 3px rgba(37,99,235,0.15)!important;}
+                        .agent-send-btn:hover{background:linear-gradient(135deg, #EA580C, #D97706)!important;transform:scale(1.05);}
+                        .agent-trace-btn:hover{background:#FFEDD5!important;}
+                        .agent-close-btn:hover{background:#F1F5F9!important;color:#0F172A!important;}
                     `}</style>
 
                     {/* Header */}
                     <div style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                         padding: '12px 16px',
-                        background: 'linear-gradient(135deg, rgba(124,58,237,0.3), rgba(139,92,246,0.2))',
-                        borderBottom: '1px solid rgba(255,255,255,0.08)',
+                        background: 'linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)',
+                        borderBottom: '1px solid #FED7AA',
                         flexShrink: 0,
                     }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <CatSvg size={28} isThinking={isThinking} />
+                            <CatSvg size={30} isThinking={isThinking} />
                             <div>
-                                <div style={{ color: '#fff', fontWeight: 800, fontSize: 14, letterSpacing: '-0.3px' }}>
+                                <div style={{ color: '#0F172A', fontWeight: 800, fontSize: 15, letterSpacing: '-0.3px' }}>
                                     KidoBot Agent
                                 </div>
-                                <div style={{ color: 'rgba(167,139,250,0.9)', fontSize: 10, fontWeight: 600 }}>
+                                <div style={{ color: '#C2410C', fontSize: 11, fontWeight: 700 }}>
                                     {isThinking ? 'Reasoning on AMD MI300X...' : 'Ready to help'}
                                 </div>
                             </div>
@@ -243,28 +299,29 @@ export default function AgentHintPanel({
                                     onClick={() => setShowTrace(v => !v)}
                                     title="View agent reasoning trace"
                                     style={{
-                                        background: showTrace ? 'rgba(124,58,237,0.3)' : 'transparent',
-                                        border: '1px solid rgba(255,255,255,0.15)',
+                                        background: showTrace ? '#FFEDD5' : '#FFFFFF',
+                                        border: '1px solid #FDBA74',
                                         borderRadius: 8,
-                                        padding: '4px 8px',
-                                        color: 'rgba(167,139,250,0.9)',
-                                        fontSize: 10,
+                                        padding: '4px 10px',
+                                        color: '#C2410C',
+                                        fontSize: 11,
                                         fontWeight: 700,
                                         cursor: 'pointer',
-                                        transition: 'background 0.2s',
+                                        transition: 'all 0.2s',
                                     }}
                                 >
                                     Trace
                                 </button>
                             )}
                             <button
+                                className="agent-close-btn"
                                 onClick={() => setIsOpen(false)}
                                 style={{
-                                    background: 'rgba(255,255,255,0.1)', border: 'none',
+                                    background: '#FFFFFF', border: '1px solid #FED7AA',
                                     borderRadius: 8, width: 28, height: 28,
-                                    color: 'rgba(255,255,255,0.7)', cursor: 'pointer',
+                                    color: '#64748B', cursor: 'pointer',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    fontSize: 14, fontWeight: 700,
+                                    fontSize: 14, fontWeight: 700, transition: 'all 0.2s',
                                 }}
                             >✕</button>
                         </div>
@@ -273,15 +330,15 @@ export default function AgentHintPanel({
                     {/* GPU Badge */}
                     {gpuInfo && (
                         <div style={{
-                            padding: '4px 16px',
-                            background: 'rgba(0,0,0,0.3)',
+                            padding: '5px 16px',
+                            background: '#F8FAFC',
                             display: 'flex', alignItems: 'center', gap: 6,
-                            borderBottom: '1px solid rgba(255,255,255,0.04)',
+                            borderBottom: '1px solid #E2E8F0',
                         }}>
                             <div style={{
-                                width: 6, height: 6, borderRadius: '50%', background: '#22c55e',
+                                width: 6, height: 6, borderRadius: '50%', background: '#16A34A',
                             }} />
-                            <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: 9, fontWeight: 600, letterSpacing: '0.3px' }}>
+                            <span style={{ color: '#64748B', fontSize: 10, fontWeight: 600, letterSpacing: '0.2px' }}>
                                 {gpuInfo.gpu} · {gpuInfo.tokens} tokens · {gpuInfo.latency}ms
                             </span>
                         </div>
@@ -290,17 +347,17 @@ export default function AgentHintPanel({
                     {/* Trace panel */}
                     {showTrace && lastTrace.length > 0 && (
                         <div style={{
-                            padding: '8px 16px',
-                            background: 'rgba(0,0,0,0.4)',
-                            borderBottom: '1px solid rgba(255,255,255,0.06)',
-                            maxHeight: 100,
+                            padding: '10px 16px',
+                            background: '#F8FAFC',
+                            borderBottom: '1px solid #E2E8F0',
+                            maxHeight: 110,
                             overflowY: 'auto',
                         }}>
-                            <div style={{ color: 'rgba(167,139,250,0.8)', fontSize: 9, fontWeight: 800, marginBottom: 4 }}>
+                            <div style={{ color: '#C2410C', fontSize: 10, fontWeight: 800, marginBottom: 4, letterSpacing: '0.5px' }}>
                                 REASONING TRACE
                             </div>
                             {lastTrace.map((step, i) => (
-                                <div key={i} style={{ color: 'rgba(255,255,255,0.5)', fontSize: 9, lineHeight: 1.6 }}>
+                                <div key={i} style={{ color: '#475569', fontSize: 10, lineHeight: 1.6, fontWeight: 500 }}>
                                     {step}
                                 </div>
                             ))}
@@ -308,12 +365,12 @@ export default function AgentHintPanel({
                     )}
 
                     {/* Messages */}
-                    <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12, background: '#FFFFFF' }}>
                         {messages.length === 0 && isThinking && (
                             <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                                <CatSvg size={24} isThinking />
+                                <CatSvg size={26} isThinking />
                                 <div style={{
-                                    background: 'rgba(255,255,255,0.07)', borderRadius: '12px 12px 12px 4px',
+                                    background: '#F1F5F9', border: '1px solid #E2E8F0', borderRadius: '14px 14px 14px 4px',
                                     padding: '8px 12px',
                                 }}>
                                     <ThinkingDots />
@@ -327,28 +384,30 @@ export default function AgentHintPanel({
                                 gap: 8,
                                 alignItems: 'flex-start',
                             }}>
-                                {msg.role === 'assistant' && <CatSvg size={24} />}
+                                {msg.role === 'assistant' && <CatSvg size={26} />}
                                 <div style={{
                                     maxWidth: '82%',
                                     background: msg.role === 'user'
-                                        ? 'linear-gradient(135deg, #7c3aed, #6d28d9)'
-                                        : 'rgba(255,255,255,0.08)',
+                                        ? 'linear-gradient(135deg, #0284C7, #2563EB)'
+                                        : '#F1F5F9',
                                     borderRadius: msg.role === 'user'
-                                        ? '12px 12px 4px 12px'
-                                        : '12px 12px 12px 4px',
-                                    padding: '10px 13px',
-                                    border: msg.role === 'assistant' ? '1px solid rgba(255,255,255,0.07)' : 'none',
+                                        ? '14px 14px 4px 14px'
+                                        : '14px 14px 14px 4px',
+                                    padding: '10px 14px',
+                                    border: msg.role === 'assistant' ? '1px solid #E2E8F0' : 'none',
+                                    boxShadow: msg.role === 'user' ? '0 4px 12px rgba(37,99,235,0.2)' : '0 2px 6px rgba(0,0,0,0.03)',
                                 }}>
                                     {/* Memory note badge */}
                                     {msg.memoryNote && (
                                         <div style={{
-                                            background: 'rgba(124,58,237,0.3)',
+                                            background: '#FEF3C7',
+                                            border: '1px solid #FDE68A',
                                             borderRadius: 6,
                                             padding: '3px 8px',
                                             marginBottom: 6,
-                                            fontSize: 9,
+                                            fontSize: 10,
                                             fontWeight: 700,
-                                            color: 'rgba(167,139,250,0.9)',
+                                            color: '#B45309',
                                             letterSpacing: '0.3px',
                                         }}>
                                             MEMORY: {msg.memoryNote}
@@ -356,7 +415,7 @@ export default function AgentHintPanel({
                                     )}
                                     <p style={{
                                         margin: 0,
-                                        color: '#fff',
+                                        color: msg.role === 'user' ? '#FFFFFF' : '#1E293B',
                                         fontSize: 13,
                                         lineHeight: 1.6,
                                         fontWeight: 500,
@@ -365,30 +424,41 @@ export default function AgentHintPanel({
                                     </p>
                                     {/* Next block chip */}
                                     {msg.nextBlock && (
-                                        <div style={{
-                                            display: 'inline-block',
-                                            marginTop: 8,
-                                            background: 'rgba(34,197,94,0.15)',
-                                            border: '1px solid rgba(34,197,94,0.3)',
-                                            borderRadius: 8,
-                                            padding: '4px 10px',
-                                            fontSize: 10,
-                                            fontWeight: 700,
-                                            color: '#4ade80',
-                                            fontFamily: 'monospace',
-                                        }}>
-                                            Next: {msg.nextBlock}
-                                        </div>
+                                        <button
+                                            onClick={() => onBlockHighlight && onBlockHighlight(msg.nextBlock)}
+                                            title="Click to locate this block in toolbox"
+                                            style={{
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: 4,
+                                                marginTop: 8,
+                                                background: '#DCFCE7',
+                                                border: '1px solid #86EFAC',
+                                                borderRadius: 8,
+                                                padding: '4px 10px',
+                                                fontSize: 11,
+                                                fontWeight: 700,
+                                                color: '#15803D',
+                                                fontFamily: 'monospace',
+                                                cursor: 'pointer',
+                                                transition: 'all 0.15s',
+                                            }}
+                                            onMouseEnter={e => e.currentTarget.style.background = '#BBF7D0'}
+                                            onMouseLeave={e => e.currentTarget.style.background = '#DCFCE7'}
+                                        >
+                                            {formatBlockPill(msg.nextBlock)}
+                                        </button>
                                     )}
                                 </div>
                             </div>
                         ))}
                         {isThinking && messages.length > 0 && (
                             <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                                <CatSvg size={24} isThinking />
+                                <CatSvg size={26} isThinking />
                                 <div style={{
-                                    background: 'rgba(255,255,255,0.07)',
-                                    borderRadius: '12px 12px 12px 4px',
+                                    background: '#F1F5F9',
+                                    border: '1px solid #E2E8F0',
+                                    borderRadius: '14px 14px 14px 4px',
                                     padding: '8px 12px',
                                 }}>
                                     <ThinkingDots />
@@ -401,27 +471,28 @@ export default function AgentHintPanel({
                     {/* Quick prompts */}
                     {messages.length > 0 && !isThinking && (
                         <div style={{
-                            padding: '6px 14px',
+                            padding: '8px 14px',
                             display: 'flex', gap: 6, overflowX: 'auto',
                             flexShrink: 0,
-                            borderTop: '1px solid rgba(255,255,255,0.06)',
+                            background: '#F8FAFC',
+                            borderTop: '1px solid #E2E8F0',
                         }}>
-                            {['Why?', 'Show another way', 'What block next?'].map(q => (
+                            {['Give me a hint', 'What block next?', 'Why?'].map(q => (
                                 <button
                                     key={q}
                                     onClick={() => sendHintRequest(q)}
                                     style={{
-                                        background: 'rgba(124,58,237,0.2)',
-                                        border: '1px solid rgba(124,58,237,0.3)',
+                                        background: '#EFF6FF',
+                                        border: '1px solid #BFDBFE',
                                         borderRadius: 20,
-                                        padding: '4px 10px',
-                                        color: 'rgba(167,139,250,0.9)',
-                                        fontSize: 10, fontWeight: 700,
+                                        padding: '4px 12px',
+                                        color: '#1D4ED8',
+                                        fontSize: 11, fontWeight: 700,
                                         cursor: 'pointer', whiteSpace: 'nowrap',
                                         transition: 'all 0.15s',
                                     }}
-                                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(124,58,237,0.4)'}
-                                    onMouseLeave={e => e.currentTarget.style.background = 'rgba(124,58,237,0.2)'}
+                                    onMouseEnter={e => e.currentTarget.style.background = '#DBEAFE'}
+                                    onMouseLeave={e => e.currentTarget.style.background = '#EFF6FF'}
                                 >
                                     {q}
                                 </button>
@@ -431,9 +502,9 @@ export default function AgentHintPanel({
 
                     {/* Input */}
                     <form onSubmit={handleSendMessage} style={{
-                        display: 'flex', gap: 8, padding: '10px 14px',
-                        borderTop: '1px solid rgba(255,255,255,0.08)',
-                        background: 'rgba(0,0,0,0.3)',
+                        display: 'flex', gap: 8, padding: '12px 14px',
+                        borderTop: '1px solid #E2E8F0',
+                        background: '#FFFFFF',
                         flexShrink: 0,
                     }}>
                         <input
@@ -445,14 +516,14 @@ export default function AgentHintPanel({
                             disabled={isThinking}
                             style={{
                                 flex: 1,
-                                background: 'rgba(255,255,255,0.07)',
-                                border: '1px solid rgba(255,255,255,0.12)',
+                                background: '#F8FAFC',
+                                border: '1px solid #CBD5E1',
                                 borderRadius: 12,
-                                padding: '8px 12px',
-                                color: '#fff',
-                                fontSize: 12,
+                                padding: '9px 14px',
+                                color: '#0F172A',
+                                fontSize: 13,
                                 fontFamily: 'inherit',
-                                transition: 'border-color 0.2s',
+                                transition: 'all 0.2s',
                             }}
                         />
                         <button
@@ -460,14 +531,15 @@ export default function AgentHintPanel({
                             className="agent-send-btn"
                             disabled={!inputValue.trim() || isThinking}
                             style={{
-                                background: 'rgba(124,58,237,0.7)',
+                                background: 'linear-gradient(135deg, #FF9800, #F97316)',
                                 border: 'none', borderRadius: 12,
-                                width: 36, height: 36,
-                                color: '#fff', cursor: 'pointer',
+                                width: 38, height: 38,
+                                color: '#FFFFFF', cursor: 'pointer',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                fontSize: 16,
+                                fontSize: 16, fontWeight: 700,
                                 opacity: (!inputValue.trim() || isThinking) ? 0.4 : 1,
                                 transition: 'all 0.2s',
+                                boxShadow: '0 4px 12px rgba(249, 115, 22, 0.25)',
                             }}
                         >
                             ↑

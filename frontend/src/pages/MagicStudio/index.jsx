@@ -247,7 +247,7 @@ export default function MagicStudio() {
         isAgentSolvedRef, tutorStateRef, setIsAgentSolved, addLog,
     });
 
-    // ── Blockly BLOCK_CREATE listener — records when a block is placed ───────
+    // ── Blockly workspace change listener — keeps workspace blocks in sync ────
     useEffect(() => {
         let attempts = 0;
         const MAX_ATTEMPTS = 30;
@@ -261,25 +261,34 @@ export default function MagicStudio() {
                 return;
             }
 
-            const onBlockCreate = (event) => {
-                if (event.type !== Blockly.Events.BLOCK_CREATE) return;
-                const ids = event.ids || (event.blockId ? [event.blockId] : []);
-                for (const id of ids) {
-                    const block = ws.getBlockById(id);
-                    if (block) {
-                        recordBlockPlaced(block.type);
-                        recordBlockPlacedForEngagement();
-                        // Keep agent workspace blocks in sync
-                        setAgentWorkspaceBlocks(ws.getAllBlocks(false).map(b => b.type));
+            const syncBlocks = () => {
+                if (ws) {
+                    setAgentWorkspaceBlocks(ws.getAllBlocks(false).map(b => b.type));
+                }
+            };
+
+            const onWorkspaceEvent = (event) => {
+                if ([Blockly.Events.BLOCK_CREATE, Blockly.Events.BLOCK_DELETE, Blockly.Events.BLOCK_CHANGE].includes(event.type)) {
+                    syncBlocks();
+                }
+                if (event.type === Blockly.Events.BLOCK_CREATE) {
+                    const ids = event.ids || (event.blockId ? [event.blockId] : []);
+                    for (const id of ids) {
+                        const block = ws.getBlockById(id);
+                        if (block) {
+                            recordBlockPlaced(block.type);
+                            recordBlockPlacedForEngagement();
+                        }
                     }
                 }
             };
 
-            ws.addChangeListener(onBlockCreate);
-            console.log('[HelpTracker] BLOCK_CREATE listener attached to workspace.');
+            ws.addChangeListener(onWorkspaceEvent);
+            syncBlocks(); // Immediate sync on attach
+            console.log('[HelpTracker] Workspace change listener attached.');
 
             return () => {
-                ws.removeChangeListener(onBlockCreate);
+                ws.removeChangeListener(onWorkspaceEvent);
             };
         };
 
@@ -807,8 +816,6 @@ export default function MagicStudio() {
                         </div>
                     )}
 
-                    {/* HELP */}
-                    <SittingCatHelpButton onClick={handleGetHelp} isMobile={isMobile} />
 
                     {/* RUN / STOP */}
                     <button
@@ -1025,6 +1032,7 @@ export default function MagicStudio() {
                 <AgentHintPanel
                     isMobile={isMobile}
                     workspaceBlocks={agentWorkspaceBlocks}
+                    getLiveWorkspaceBlocks={() => wsRef.current ? wsRef.current.getAllBlocks(false).map(b => b.type) : agentWorkspaceBlocks}
                     objective={LESSON.objective || LESSON.title || ''}
                     lessonId={lessonId}
                     onBlockHighlight={(blockType) => highlightNextBlock(blockType, wsRef.current, BLOCK_DB)}

@@ -105,15 +105,6 @@ export function StagePanel({
 
             {/* Scrollable Content Engine */}
             <div style={{ flex: 1, overflowY: 'auto', background: '#F8FAFC' }}>
-                {tutorState.active && (
-                    <div style={{ position: 'absolute', top: 45, right: 10, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', zIndex: 100, pointerEvents: 'none' }}>
-                        <div style={{ background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(10px)', padding: '10px 14px', borderRadius: '15px 15px 2px 15px', boxShadow: '0 8px 25px rgba(0,0,0,0.1)', border: '2px solid #6366F1', maxWidth: 160, marginBottom: 8, fontSize: 12, lineHeight: 1.4, color: '#1E293B', fontWeight: 600, position: 'relative' }}>
-                            {tutorState.message}
-                            <div style={{ position: 'absolute', right: 5, bottom: -10, width: 15, height: 15, background: '#6366F1', clipPath: 'polygon(100% 0, 0 0, 50% 100%)' }} />
-                        </div>
-                        <img src={tutorBot} style={{ width: 60, height: 60, animation: 'tutorFloat 3s ease-in-out infinite' }} alt="tutor" />
-                    </div>
-                )}
 
                 {asking && (
                     <div style={{ padding: '7px 12px', background: '#EFF6FF', borderBottom: '1px solid #BFDBFE', display: 'flex', gap: 6, alignItems: 'center' }}>

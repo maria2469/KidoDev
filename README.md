@@ -15,13 +15,49 @@ Built specifically for **Track 2: Agentic AI**, Kido Dev moves beyond standard o
 
 ---
 
-## 🤖 Multi-Agent Architecture (Track 2: Agentic AI)
+## ✨ Features Working So Far
 
-Kido Dev is powered by a Python FastAPI sidecar orchestrating specialized AI agents via a customized **ReAct (Reason → Act → Observe)** loop:
+### 🐱 1. Interactive Animated Sprite Guide Agent ("Cat Co-Pilot")
+- **Live Drag-and-Drop Demonstrations:** Watch the animated Cat Agent dynamically open the Scratch block flyout menu, grab target blocks with paw precision, drag them across the screen, and snap them into place on the workspace.
+- **Screen Matrix SVG Alignment:** Uses native SVG `getScreenCTM()` transformations for pixel-perfect coordinate tracking across zooms, high-DPI displays, and viewports.
+- **Smart Workspace Placement:** Calculates the expanded width of category strips and open flyouts to place dropped blocks in the clear, visible center of the workspace canvas (~480px from left) with celebratory starburst sparkles (`✨ ⭐ 🌟 💫`).
+- **Interactive Action Pills:** Embedded buttons in chat (`📍 Place Top of workspace (Green Flag) 🎯`) allow kids to request visual block placement assistance anytime.
+
+### 🧠 2. Socratic AI Tutor Agent (`KidoBot`)
+- **Socratic Pedagogical Guidance:**
+  - *General Hints ("Give me a hint"):* Explains the computer science **concept** needed (e.g. *"To make your character walk forward, you need a block that changes your sprite's position!"*) without blurting out the block name.
+  - *Explicit Queries ("What block next?"):* Reveals the exact block name and UI location (*"Look in the Motion panel for the Move Steps block and snap it below your Green Flag block!"*).
+  - *Why Queries ("Why?"):* Explains the real-world computer science rationale in simple, engaging terms.
+- **Short & Long-Term Memory:** Tracks past student struggles, hint frequency, and objective completion in Supabase.
+- **Clean Kid-Friendly Output:** Strips teacher notes, raw XML, and internal guidelines.
+
+### 🤖 3. Multi-Agent Backend Architecture (FastAPI + AMD Inference)
+- **TutorAgent:** Multi-turn ReAct loop performing XML solution gap diffing against student workspace blocks.
+- **GraderAgent:** Evaluates completed projects across 4 dimensions:
+  - *Correctness (0-25)*: Solution XML tree match.
+  - *Efficiency (0-25)*: Minimal block count.
+  - *Independence (0-25)*: Low AI hint dependency.
+  - *Creativity (0-25)*: Exploratory block usage.
+- **CurriculumPlannerAgent (`/my-path`):** Dynamically builds personalized learning roadmaps based on weak block types and historic scores.
+- **EngagementAgent:** Passive session observer detecting fatigue, idle time, or rapid click velocity.
+
+### 🎮 4. Gamified Learning Studio & Worlds
+- **Blockly Visual Studio:** Full custom Scratch block suite (`s_when_flag`, `s_move`, `s_repeat`, `s_forever`, `s_if`, `s_say`, etc.) with live stage execution, costume switching, and sound effects.
+- **Themed Level Maps:** Multi-world progression maps (Princess, Wizard, and Adventure themes).
+- **Interactive Mini-Games:** Canvas-based coding games including *Catch Donut*, *Traffic Control*, and *Maze Runner*.
+
+### 📊 5. Analytics & School Dashboards
+- **School & Parent Dashboards:** Live progress tracking, engagement scores, and AI business insights.
+- **AMD Benchmark Dashboard:** Dedicated Admin panel for live GPU latency and throughput benchmark tests.
+
+---
+
+## 🤖 Multi-Agent Architecture Diagram
 
 ```text
                ┌──────────────────────────────────────────────┐
                │         Frontend Agent Orchestrator          │
+               │    - SpriteGuideAgent (Visual Demonstrator)   │
                └──────────────────────┬───────────────────────┘
                                       │ HTTP / REST
                                       ▼
@@ -43,30 +79,9 @@ Kido Dev is powered by a Python FastAPI sidecar orchestrating specialized AI age
                       └──────────────────────────────┘
 ```
 
-### 1. **TutorAgent (Multi-Turn Conversational Tutor)**
-- **ReAct Reasoning Loop:** Executes step-by-step reasoning before taking action.
-- **Solution Gap Analysis:** Diffing student workspace blocks against solution XML trees to suggest the single best next block.
-- **Memory Integration:** Remembers past struggles and strengths to deliver personalized, encouraging nudges.
-
-### 2. **GraderAgent (Multi-Dimensional Scoring)**
-- Evaluates completed assignments across 4 distinct dimensions:
-  - **Correctness (0-25):** Solution XML match precision.
-  - **Efficiency (0-25):** Minimal block usage.
-  - **Independence (0-25):** Low reliance on AI hints.
-  - **Creativity (0-25):** Addition of extra exploratory blocks.
-- Produces natural language pedagogical feedback without spoil-heavy answers.
-
-### 3. **CurriculumPlannerAgent (Personalized Path)**
-- Generates dynamic, custom learning roadmaps for each student at `/my-path`.
-- Analyzes weak block types, average scores, and past completions to recommend 3-5 prioritized next lessons.
-
-### 4. **EngagementAgent (Passive Session Observer)**
-- Monitors idle time, rapid click velocity, and total session duration.
-- Automatically triggers break suggestions or motivational prompts when disengagement or fatigue is detected.
-
 ---
 
-## ⚡ AMD Radeon GPU & ROCm Optimization
+## ⚡ AMD Radeon GPU & ROCm Acceleration
 
 | Feature | Implementation |
 |---------|----------------|
@@ -89,7 +104,7 @@ kidodev/
 │   │   │   ├── Admin/          # Admin Dashboard, AMD Benchmark, & Live Agent Feed
 │   │   │   ├── Auth/           # Parent & School dashboards
 │   │   │   ├── Games/          # Canvas mini-games (Donut, Traffic, Maze)
-│   │   │   ├── MagicStudio/    # Blockly studio with Multi-turn Agent Hint Panel
+│   │   │   ├── MagicStudio/    # Blockly studio with Multi-turn Agent & Sprite Guide
 │   │   │   ├── Levels.jsx      # Learning world selection hub
 │   │   │   └── PersonalizedPath.jsx # AI Curriculum Planner (/my-path)
 │   │   └── utils/              # Client services & Supabase integration

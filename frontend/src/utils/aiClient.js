@@ -7,6 +7,7 @@
 const FIREWORKS_API_KEY = import.meta.env.VITE_FIREWORKS_API_KEY;
 const FIREWORKS_API_URL = 'https://api.fireworks.ai/inference/v1/chat/completions';
 const MODEL_ID = import.meta.env.VITE_FIREWORKS_MODEL || 'accounts/tomarianoor-9npw0j9i/models/gemma4-26b-a4b-kidtutor-lora#accounts/tomarianoor-9npw0j9i/deployments/nuhyho9n';
+const FALLBACK_MODEL = 'accounts/fireworks/models/llama-v3p1-8b-instruct';
 
 /**
  * Robust JSON parser for AI outputs that strips control characters
@@ -24,9 +25,10 @@ const parseAIJson = (rawStr) => {
 };
 
 /**
- * Core function to communicate with Fireworks API
+ * Core function to communicate with Fireworks API with automatic fallback
  */
-const getFireworksCompletion = async (systemPrompt, userPrompt) => {
+const getFireworksCompletion = async (systemPrompt, userPrompt, useFallback = false) => {
+    const selectedModel = useFallback ? FALLBACK_MODEL : MODEL_ID;
     try {
         const response = await fetch(FIREWORKS_API_URL, {
             method: "POST",
@@ -36,8 +38,8 @@ const getFireworksCompletion = async (systemPrompt, userPrompt) => {
                 "Authorization": `Bearer ${FIREWORKS_API_KEY}`
             },
             body: JSON.stringify({
-                model: MODEL_ID,
-                max_tokens: 8192,
+                model: selectedModel,
+                max_tokens: 4096,
                 top_k: 40,
                 presence_penalty: 0,
                 frequency_penalty: 0,
@@ -50,12 +52,21 @@ const getFireworksCompletion = async (systemPrompt, userPrompt) => {
 
         if (!response.ok) {
             const errData = await response.json().catch(() => ({}));
-            throw new Error(errData.error?.message || `Fireworks API error: ${response.status}`);
+            const msg = errData.error?.message || `Fireworks API error: ${response.status}`;
+            if (!useFallback) {
+                console.warn(`[aiClient] Model '${selectedModel}' failed (${msg}). Retrying with fallback '${FALLBACK_MODEL}'...`);
+                return getFireworksCompletion(systemPrompt, userPrompt, true);
+            }
+            throw new Error(msg);
         }
 
         const data = await response.json();
         return data.choices?.[0]?.message?.content || '';
     } catch (err) {
+        if (!useFallback) {
+            console.warn(`[aiClient] Network error with '${selectedModel}'. Retrying with fallback '${FALLBACK_MODEL}'...`, err.message);
+            return getFireworksCompletion(systemPrompt, userPrompt, true);
+        }
         console.error('Fireworks AI Error:', err);
         throw err;
     }
@@ -152,7 +163,7 @@ Respond ONLY with a valid JSON object matching this structure:
     }
 };
 
-export const generateLiveHint = async (workspaceBlocks, objective) => {
+export const generateLiveHint = async (workspaceBlocks = [], objective = '', userMessage = '') => {
     const systemPrompt = `You are a friendly AI coding tutor for kids. 
 The student is trying to solve this objective: "${objective}"
 They currently have these block types in their workspace: ${JSON.stringify(workspaceBlocks)}
@@ -169,12 +180,70 @@ Respond ONLY with a valid JSON object matching this structure:
 Common block types: s_when_flag, s_move, s_say, s_forever, s_wait. Use the most logical one.`;
 
     try {
-        const response = await getFireworksCompletion(systemPrompt, "What is the next block?");
-        return parseAIJson(response);
+        const response = await getFireworksCompletion(systemPrompt, userMessage || "What is the next block?");
+        const parsed = parseAIJson(response);
+        if (parsed && parsed.message) return parsed;
     } catch (err) {
-        console.error('Live Hint Generation Error:', err);
-        return null; // Let the caller fallback
+        console.warn('Live Hint Cloud API Error — switching to local smart hint engine:', err.message);
     }
+
+    // Smart contextual fallback with Socratic tutor persona
+    const q = (userMessage || '').toLowerCase();
+    const blocks = workspaceBlocks || [];
+    let suggestedBlock = "s_when_flag";
+    let blockCategory = "Events";
+    let conceptHint = "To start your project, you'll need an event block from Events that gives your sprite a starting signal when you click the green flag!";
+    let explicitHint = "Look in the Events panel for the Green Flag Event block and snap it at the top of your workspace!";
+    let whyItMatters = "Computers need a clear starting signal! Just like a referee blowing a whistle to start a game, the Green Flag tells your character when to start running your code step-by-step.";
+
+    if (!blocks.includes("s_when_flag")) {
+        suggestedBlock = "s_when_flag";
+        blockCategory = "Events";
+        conceptHint = "To start your project, you'll need an event block from Events that gives your sprite a starting signal when you click the green flag!";
+        explicitHint = "Look in the Events panel for the Green Flag Event block and snap it at the top of your workspace!";
+        whyItMatters = "Computers need a clear starting signal! Just like a referee blowing a whistle to start a game, the Green Flag tells your character when to start running your code step-by-step.";
+    } else if (!blocks.includes("s_move") && !blocks.includes("s_say")) {
+        suggestedBlock = "s_move";
+        blockCategory = "Motion";
+        conceptHint = "To get your character walking across the stage, you'll need a block from Motion that moves your sprite forward!";
+        explicitHint = "Look in the Motion panel for the Move Steps block and snap it directly below your Green Flag block!";
+        whyItMatters = "Characters don't move on screen unless we give them motion commands! The Move block changes your sprite's position in the direction it is facing.";
+    } else if (!blocks.includes("s_repeat") && !blocks.includes("s_forever")) {
+        suggestedBlock = "s_repeat";
+        blockCategory = "Control";
+        conceptHint = "To make your action happen multiple times without snapping 10 identical blocks together, you'll need a loop block from Control!";
+        explicitHint = "Look in the Control panel for the Repeat Loop block and wrap it around your motion blocks!";
+        whyItMatters = "Instead of snapping 10 identical blocks together, programmers use loops! A repeat block tells the computer to run actions automatically, keeping your code neat.";
+    } else {
+        suggestedBlock = "s_say";
+        blockCategory = "Looks";
+        conceptHint = "To make your character talk or display a speech bubble, you'll need a communication block from Looks!";
+        explicitHint = "Look in the Looks panel for the Say block and snap it into your script!";
+        whyItMatters = "Characters communicate visually! The Say block pops up a speech bubble so players can read what your character is saying.";
+    }
+
+    const openersWhy = ["Ooh, that is such a great question!", "Aha! Love how curious you are!", "That is a super smart question to ask!", "I love when coders ask why!"];
+    const openersWhat = ["Woohoo! Let's check what cool block comes next!", "Super work so far! Here is your next coding move:", "You are building something awesome! Next up:"];
+    const endings = ["Give it a spin and see the magic happen!", "You've got this, coding superstar!", "Snap it in and watch the magic happen!"];
+
+    const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+    const cleanObj = (objective || '').split(/Child understands|Teacher note|Assessment:|Objectives:|Goal:/i)[0].trim().replace(/[!.:]+$/, '');
+    const objPhrase = cleanObj ? ` to help ${cleanObj.charAt(0).toLowerCase() + cleanObj.slice(1)}` : '';
+
+    const isWhy = q.includes('why') || q.includes('reason');
+    const isExplicit = q.includes('what block') || q.includes('which block') || q.includes('exact block');
+
+    let msg = `Hi coding buddy! ${conceptHint} ${pick(endings)}`;
+    if (isWhy) {
+        msg = `${pick(openersWhy)} ${whyItMatters}${objPhrase}. ${pick(endings)}`;
+    } else if (isExplicit) {
+        msg = `${pick(openersWhat)} ${explicitHint} ${whyItMatters} ${pick(endings)}`;
+    }
+
+    return {
+        blockType: suggestedBlock,
+        message: msg
+    };
 };
 
 export const generateLiveSolution = async (objective) => {

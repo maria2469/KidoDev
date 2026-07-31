@@ -1,5 +1,5 @@
 import * as Blockly from 'blockly';
-import { CatSprite } from './CatSprite';
+import { CatSprite, sparkles } from './CatSprite';
 
 let activeAgent = null;
 
@@ -69,8 +69,45 @@ function waitForStableRect(getRect, { maxTries = 30, stableFramesNeeded = 2 } = 
 }
 
 function openCategory(ws, name) {
-    for (const item of ws.getToolbox?.()?.getToolboxItems?.() || [])
-        if (item.getName?.() === name) { ws.getToolbox().setSelectedItem(item); return; }
+    if (!ws || !name) return;
+    const search = name.toLowerCase();
+    const toolbox = ws.getToolbox?.();
+    if (toolbox) {
+        const items = toolbox.getToolboxItems?.() || [];
+        for (const item of items) {
+            const itemName = (item.getName?.() || item.toolboxItemDef_?.name || '').toLowerCase();
+            if (itemName && itemName.includes(search)) {
+                try {
+                    toolbox.setSelectedItem(item);
+                    const flyout = ws.getFlyout?.();
+                    if (flyout) {
+                        flyout.setVisible?.(true);
+                        if (typeof item.getContents === 'function') {
+                            flyout.show?.(item.getContents());
+                        }
+                    }
+                } catch (e) {
+                    console.warn("⚠️ Category select error:", e);
+                }
+                break;
+            }
+        }
+    }
+    const catEls = document.querySelectorAll('.blocklyTreeRow, .blocklyToolboxCategory, .blocklyTreeLabel, [role="treeitem"]');
+    for (const el of catEls) {
+        const text = (el.getAttribute('aria-label') || el.textContent || '').toLowerCase();
+        if (text.includes(search)) {
+            try {
+                const row = el.closest('.blocklyTreeRow, .blocklyToolboxCategory') || el;
+                row.click?.();
+                row.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+                row.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
+                row.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+            } catch (_) {}
+            return el;
+        }
+    }
+    return null;
 }
 
 /* ───────────────────────────────────────────────────────────────
@@ -86,24 +123,29 @@ function getEditorRect(ws) {
 function getContentAreaRect(ws) {
     const edRect = getEditorRect(ws);
     if (!edRect) return null;
-    const tbW = document.querySelector('.blocklyToolboxDiv')?.offsetWidth ?? 0;
 
-    // Visible workspace = editor rect minus the toolbox strip on the left.
-    const visLeft = edRect.left + tbW;
-    const visRight = edRect.right;
-    const visTop = edRect.top;
-    const visBottom = edRect.bottom;
+    const tbEl = document.querySelector('.blocklyToolboxDiv');
+    const flyoutEl = document.querySelector('.blocklyFlyout');
 
-    // Guard against a degenerate (too-narrow) visible area.
-    const safeLeft = visLeft < visRight - 80 ? visLeft : edRect.left;
+    const tbW = tbEl?.offsetWidth ?? 60;
+    const flyoutRect = flyoutEl?.getBoundingClientRect();
+    const flyoutW = (flyoutRect && flyoutRect.width > 0) ? flyoutRect.width : 280;
+
+    const totalSidebarRight = Math.max((edRect.left + tbW + flyoutW), (flyoutRect?.right ?? 0));
+
+    const visLeft = totalSidebarRight + 50;
+    const visRight = edRect.right - 50;
+    const visTop = edRect.top + 60;
+    const visBottom = edRect.bottom - 60;
+
+    const cx = Math.max(visLeft + 80, visLeft + (visRight - visLeft) * 0.4);
+    const cy = visTop + (visBottom - visTop) * 0.35;
 
     return {
-        left: safeLeft + 12, right: visRight - 12,
-        top: visTop + 12, bottom: visBottom - 12,
-        // True center of the visible workspace, so the dropped block is
-        // always in view without needing to close the blocks sidebar.
-        cx: safeLeft + (visRight - safeLeft) / 2,
-        cy: visTop + (visBottom - visTop) / 2,
+        left: visLeft, right: visRight,
+        top: visTop, bottom: visBottom,
+        cx: cx,
+        cy: cy,
     };
 }
 
@@ -114,21 +156,33 @@ function wsToScreen(ws, wx, wy) {
     const svg = ws.getParentSvg?.(), canvas = ws.getCanvas?.();
     if (!svg || !canvas) return null;
     try {
-        const ctm = canvas.getCTM(), r = svg.getBoundingClientRect();
-        return {
-            x: r.left + ctm.a * wx + ctm.c * wy + ctm.e,
-            y: r.top + ctm.b * wx + ctm.d * wy + ctm.f
-        };
-    } catch (_) { return null; }
+        const matrix = canvas.getScreenCTM();
+        if (!matrix) return null;
+        const pt = svg.createSVGPoint();
+        pt.x = wx; pt.y = wy;
+        const screenPt = pt.matrixTransform(matrix);
+        return { x: screenPt.x, y: screenPt.y };
+    } catch (_) {
+        try {
+            const ctm = canvas.getCTM(), r = svg.getBoundingClientRect();
+            return {
+                x: r.left + ctm.a * wx + ctm.c * wy + ctm.e,
+                y: r.top + ctm.b * wx + ctm.d * wy + ctm.f
+            };
+        } catch (__) { return null; }
+    }
 }
 
 function screenToWs(ws, sx, sy) {
     const svg = ws.getParentSvg?.(), canvas = ws.getCanvas?.();
     if (!svg || !canvas) return { x: 200, y: 100 };
     try {
-        const ctm = canvas.getCTM().inverse(), r = svg.getBoundingClientRect();
-        const dx = sx - r.left, dy = sy - r.top;
-        return { x: ctm.a * dx + ctm.c * dy + ctm.e, y: ctm.b * dx + ctm.d * dy + ctm.f };
+        const matrix = canvas.getScreenCTM()?.inverse();
+        if (!matrix) return { x: 200, y: 100 };
+        const pt = svg.createSVGPoint();
+        pt.x = sx; pt.y = sy;
+        const wsPt = pt.matrixTransform(matrix);
+        return { x: wsPt.x, y: wsPt.y };
     } catch (_) { return { x: 200, y: 100 }; }
 }
 
@@ -167,7 +221,7 @@ function tailConnectionScreenPos(ws, block) {
 const blockRect = block => block?.getSvgRoot?.()?.getBoundingClientRect() ?? null;
 
 function placeAndConnect(ws, blockType, tailBlock, fallbackScreen, sourceBlock) {
-    let wsX, wsY;
+    let wsX = null, wsY = null;
     if (tailBlock) {
         const pos = tailBlock.getRelativeToSurfaceXY?.();
         const sz = tailBlock.getHeightWidth?.();
@@ -177,7 +231,7 @@ function placeAndConnect(ws, blockType, tailBlock, fallbackScreen, sourceBlock) 
         const c = screenToWs(ws, fallbackScreen.x, fallbackScreen.y);
         wsX = c.x; wsY = c.y;
     }
-    if (wsX == null) { wsX = 120; wsY = 80; }
+    if (wsX == null) { wsX = 140; wsY = 100; }
 
     let newBlock = null;
 
@@ -235,52 +289,39 @@ class SpriteAgent {
         this.editorRect = getEditorRect(this.ws);
         this.cat = new CatSprite(this.editorRect);
         this.cat.createSprite();
-        this.cat.createGhost(this.block.label, this.block.category);
+        this.cat.createGhost(this.block.label || this.block.type, this.block.category || 'Motion');
 
         openCategory(this.ws, this.block.category);
-        await sleep(180); if (this.dead) return;
+        await sleep(250); if (this.dead) return;
 
         const catEl = this._findCategoryEl(this.block.category);
         const catRect = catEl?.getBoundingClientRect();
-        const startX = catRect ? catRect.right + 18 : (this.editorRect?.left ?? 0) + 36;
-        const startY = catRect ? catRect.top + catRect.height / 2 : (this.editorRect?.top ?? 0) + 80;
+        const startX = (catRect && catRect.left > 0) ? catRect.right + 18 : (this.editorRect?.left ?? 0) + 45;
+        const startY = (catRect && catRect.top > 0) ? catRect.top + catRect.height / 2 : (this.editorRect?.top ?? 0) + 110;
 
         this.cat.teleport(startX, startY);
         this.cat.setState('idle');
-        await sleep(280); if (this.dead) return;
+        await sleep(250); if (this.dead) return;
 
-        const flyoutBlock = await waitForFlyoutBlock(this.ws, this.block.type);
+        const flyoutBlock = await waitForFlyoutBlock(this.ws, this.block.type, 2000);
         if (this.dead) return;
-        if (!flyoutBlock) { this.destroy(); return; }
 
-        try { flyoutBlock.getSvgRoot?.()?.scrollIntoView({ block: 'nearest' }); } catch (_) { }
+        let grabX = startX + 60;
+        let grabY = startY + 15;
 
-        const flyoutSvg = flyoutBlock.getSvgRoot?.();
-        if (!flyoutSvg) { this.destroy(); return; }
-
-        // ── KEY FIX ──────────────────────────────────────────────
-        // Don't read the bounding rect right away. Wait until it's
-        // stable across consecutive animation frames, which means
-        // Blockly's flyout layout pass has actually finished placing
-        // ALL blocks in their final stacked positions. Reading it too
-        // early was the cause of the cat targeting the wrong block's
-        // (transient) position.
-        const flyoutRect = await waitForStableRect(() => flyoutSvg.getBoundingClientRect());
-        if (this.dead) return;
-        if (!flyoutRect || !flyoutRect.width) { this.destroy(); return; }
-        // ─────────────────────────────────────────────────────────
-
-        // The paw's TARGET is the block itself — its left edge, vertically
-        // centered — not a padded offset next to it. The cat approaches
-        // (runs) toward this exact point so the paw lands on the block
-        // with no visible gap once "grab" plays.
-        const grabX = flyoutRect.left + 4;
-        const grabY = flyoutRect.top + flyoutRect.height / 2;
+        if (flyoutBlock) {
+            try { flyoutBlock.getSvgRoot?.()?.scrollIntoView({ block: 'nearest' }); } catch (_) { }
+            const flyoutSvg = flyoutBlock.getSvgRoot?.();
+            if (flyoutSvg) {
+                const flyoutRect = await waitForStableRect(() => flyoutSvg.getBoundingClientRect());
+                if (flyoutRect && flyoutRect.width > 0) {
+                    grabX = flyoutRect.left + 4;
+                    grabY = flyoutRect.top + flyoutRect.height / 2;
+                }
+            }
+        }
 
         this.cat.setState('run');
-        // byPaw = true: startX/startY here are treated as the cat's
-        // current paw position (approx, since it's coming from idle at
-        // the category icon), and grabX/grabY are the paw's true target.
         await this.cat.animateTo(startX, startY, grabX, grabY, 22, 12, () => this.dead, true);
         if (this.dead) return;
 
@@ -289,40 +330,39 @@ class SpriteAgent {
 
         if (tailBlock) {
             const snap = tailConnectionScreenPos(this.ws, tailBlock);
+            const content = getContentAreaRect(this.ws);
             if (snap) {
-                dropSx = snap.x; dropSy = snap.y;
-                willConnect = true;
-                this.cat.showSnapTarget(blockRect(tailBlock));
+                if (content && snap.x < content.left) {
+                    dropSx = content.cx;
+                    dropSy = content.cy;
+                    willConnect = false;
+                } else {
+                    dropSx = snap.x; dropSy = snap.y;
+                    willConnect = true;
+                    this.cat.showSnapTarget(blockRect(tailBlock));
+                }
             }
         }
         if (!willConnect) {
             const content = getContentAreaRect(this.ws);
-            // Fallback (only used if getContentAreaRect itself returned null,
-            // e.g. editor rect unavailable): center in the visible editor.
             dropSx = content?.cx ?? (this.editorRect
-                ? this.editorRect.left + this.editorRect.width * 0.55
+                ? this.editorRect.left + 480
                 : window.innerWidth * 0.55);
             dropSy = content?.cy ?? (this.editorRect
-                ? this.editorRect.top + this.editorRect.height * 0.5
+                ? this.editorRect.top + 200
                 : window.innerHeight * 0.5);
         }
 
         await sleep(80); if (this.dead) return;
 
-        // "grab" is a one-shot clip — wait for it to actually finish
-        // playing instead of a guessed sleep duration. Sprite is already
-        // paw-anchored on the block from the animateTo above, so no
-        // repositioning happens here (which previously caused a jump/gap).
         this.cat.placeByPaw(grabX, grabY);
-        await this.cat.playOnce('grab'); if (this.dead) return;
-
+        const grabPromise = this.cat.playOnce('grab');
+        await sleep(320); if (this.dead) return;
         this.cat.showGhost();
+        await grabPromise; if (this.dead) return;
+
         this.cat.setState('drag');
 
-        // Drag from the paw's actual grab point to the drop point — both
-        // ends are paw/block-anchored, and the ghost is rigidly locked to
-        // the paw the whole way, so the hand stays glued to the block for
-        // the entire motion.
         await this.cat.animateDrag(grabX, grabY, dropSx, dropSy, 75, 14, () => this.dead);
         if (this.dead) return;
 
@@ -331,12 +371,9 @@ class SpriteAgent {
 
         this.cat.removeSnapTarget();
         this.cat.hideGhost();
+        sparkles(dropSx, dropSy);
 
-        // Re-anchor to the REAL, just-placed block's on-screen rect
-        // (post-layout, post-connect) rather than trusting the last
-        // drag-animation frame — Blockly may snap/reflow slightly on
-        // connect, so this keeps the cat glued to the block for cheer.
-        await sleep(30); // let Blockly finish its layout pass
+        await sleep(40);
         const finalRect = blockRect(placedBlock);
         if (finalRect) {
             this.cat.anchorToBlockRect(finalRect);
@@ -344,17 +381,17 @@ class SpriteAgent {
             this.cat.placeByPawRightOf(dropSx, dropSy);
         }
 
-        // "cheer" is also one-shot — wait for it to finish before cleanup.
         await this.cat.playOnce('cheer');
         this.destroy();
     }
 
     _findCategoryEl(name) {
-        for (const el of document.querySelectorAll('[role="treeitem"],.blocklyTreeRow')) {
-            const lbl = el.getAttribute('aria-label') || el.textContent?.trim();
-            if (lbl?.includes(name)) return el;
+        const search = (name || '').toLowerCase();
+        for (const el of document.querySelectorAll('[role="treeitem"],.blocklyTreeRow,.blocklyToolboxCategory')) {
+            const lbl = (el.getAttribute('aria-label') || el.textContent || '').toLowerCase();
+            if (lbl.includes(search)) return el;
         }
-        return null;
+        return document.querySelector('.blocklyToolboxDiv') || null;
     }
 
     destroy() {
