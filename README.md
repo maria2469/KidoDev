@@ -1,135 +1,172 @@
 <div align="center">
-  <h1>Kido Dev Platform</h1>
-  <p><strong>An Intelligent, Gamified EdTech Platform Built on AMD Compute & Fireworks AI</strong></p>
+  <h1>Kido Dev — Agentic AI Platform</h1>
+  <p><strong>Multi-Agent Pedagogical Copilot Powered by AMD Compute (MI300X & ROCm) & Fireworks AI</strong></p>
+  <p>🏆 <strong>AMD Hackathon — Track 2: Agentic AI Submission</strong></p>
   <p>🌐 <strong>Live Demo:</strong> <a href="https://kidodevai.netlify.app">kidodevai.netlify.app</a></p>
 </div>
 
 ---
 
-**Kido Dev** is a state-of-the-art, gamified educational technology (EdTech) platform designed to teach children the fundamentals of programming through interactive, block-based challenges. By combining a premium, highly engaging user interface with blazing-fast Large Language Models, Kido Dev creates an immersive, personalized learning environment where every child gets their own real-time AI tutor.
+## 📌 Executive Summary
 
-This project was engineered specifically to showcase the immense power of **AMD Compute Infrastructure** and the **Fireworks AI API**. We have moved beyond basic chatbots to demonstrate complex, live code-synthesis and pedagogical state-analysis happening at lightning speed.
+**Kido Dev** is an agentic, gamified educational technology (EdTech) platform designed to teach children visual block-based programming through interactive challenges. 
 
----
-
-## Hackathon Demo Credentials
-
-To fully explore Kido Dev, please use the following credentials to test the different user dashboards:
-
-**School Admin Dashboard**
-- **Email:** `adminschool@gmail.com`
-- **Password:** `adminschool@gmail.com`
-
-**Parent Dashboard**
-- **Email:** `12345678`
-- **Password:** `12345678` *(CNIC without dashes)*
-
-**Student (Magic Studio) Login**
-- **Secret Key:** `ADMINPARENTCHILD1`
+Built specifically for **Track 2: Agentic AI**, Kido Dev moves beyond standard one-shot LLM prompts by implementing a state-of-the-art **Multi-Agent Architecture** running on **AMD Radeon GPUs (local ROCm)** and **AMD Instinct MI300X GPUs (Fireworks AI cloud)**.
 
 ---
 
-## The AMD & Fireworks AI Advantage (Our Core Engine)
+## 🤖 Multi-Agent Architecture (Track 2: Agentic AI)
 
+Kido Dev is powered by a Python FastAPI sidecar orchestrating specialized AI agents via a customized **ReAct (Reason → Act → Observe)** loop:
 
+```text
+               ┌──────────────────────────────────────────────┐
+               │         Frontend Agent Orchestrator          │
+               └──────────────────────┬───────────────────────┘
+                                      │ HTTP / REST
+                                      ▼
+               ┌──────────────────────────────────────────────┐
+               │           FastAPI Agent Backend              │
+               └──────┬───────────────┬──────────────┬────────┘
+                      │               │              │
+       ┌──────────────┴──────┐ ┌──────┴──────┐ ┌─────┴─────────────┐
+       │     TutorAgent      │ │ GraderAgent │ │ CurriculumPlanner │
+       │  (Multi-Turn ReAct) │ │  (4-D Score)│ │    (/my-path)     │
+       └──────────────┬──────┘ └──────┬──────┘ └─────┬─────────────┘
+                      │               │              │
+                      └───────────────┼──────────────┘
+                                      ▼
+                      ┌──────────────────────────────┐
+                      │    AMD Inference Hardware    │
+                      │  - Fireworks (AMD MI300X)    │
+                      │  - Ollama (AMD Radeon ROCm)  │
+                      └──────────────────────────────┘
+```
 
-The beating heart of Kido Dev is our proprietary, high-performance AI integration. When building an educational platform for children, **latency is the enemy**. Kids lose focus if they have to wait for an AI response. To solve this, we architected our intelligence layer entirely on **AMD-accelerated hardware** via **Fireworks AI**.
+### 1. **TutorAgent (Multi-Turn Conversational Tutor)**
+- **ReAct Reasoning Loop:** Executes step-by-step reasoning before taking action.
+- **Solution Gap Analysis:** Diffing student workspace blocks against solution XML trees to suggest the single best next block.
+- **Memory Integration:** Remembers past struggles and strengths to deliver personalized, encouraging nudges.
 
-### How We Train the Model
-We utilize a custom fine-tuned model: `gemma4-26b-a4b-kidtutor-lora`. 
-- **Data Curation:** We built a proprietary dataset of thousands of XML trees representing custom Blockly layouts, paired with pedagogical hint-generation strategies.
-- **LoRA Fine-Tuning:** Using Low-Rank Adaptation (LoRA), we trained the base Gemma 4 model to explicitly understand our proprietary visual blocks (e.g., `<block type="s_when_flag">`).
-- **Behavioral Alignment:** The fine-tuning ensures a strict, professional-yet-encouraging pedagogical tone, explicitly restricting emojis and unhelpful direct answers.
+### 2. **GraderAgent (Multi-Dimensional Scoring)**
+- Evaluates completed assignments across 4 distinct dimensions:
+  - **Correctness (0-25):** Solution XML match precision.
+  - **Efficiency (0-25):** Minimal block usage.
+  - **Independence (0-25):** Low reliance on AI hints.
+  - **Creativity (0-25):** Addition of extra exploratory blocks.
+- Produces natural language pedagogical feedback without spoil-heavy answers.
 
-### How We Deploy It
-- **Fireworks AI Integration:** The LoRA weights are merged and deployed onto Fireworks AI, an enterprise-grade inference platform.
-- **AMD Instinct Hardware:** All LLM inference is routed through Fireworks AI endpoints heavily optimized to run on state-of-the-art **AMD Instinct GPUs (like the MI300X)**.
-- **Serverless Scaling:** This architecture allows us to run a massive 26-Billion parameter model and achieve ultra-low latency without managing physical hardware nodes.
+### 3. **CurriculumPlannerAgent (Personalized Path)**
+- Generates dynamic, custom learning roadmaps for each student at `/my-path`.
+- Analyzes weak block types, average scores, and past completions to recommend 3-5 prioritized next lessons.
 
-### How We Use It in Production
-The AI is utilized as a dynamic code-synthesizer rather than a standard chatbot:
-
-1. **Auto-Solve (Real-time Code Synthesis):**
-   Given only a natural language objective (e.g., "Build an interactive defense game"), the Gemma model synthesizes a complete, perfectly formatted **XML Tree**. This raw code is instantly translated into visual blocks and injected live into the child's workspace, demonstrating the sheer computational speed of our AMD backend.
-
-2. **Dynamic AI Tutor (Live State Analysis):**
-   When a child is stuck, they click the "AI Hint" button. The platform takes a live JSON snapshot of the child's current workspace state (the exact blocks they have placed). This state is sent to our AMD-powered Gemma model, which dynamically figures out exactly what mistake they made and generates a personalized hint, nudging them to the exact next block they need.
-
-3. **Robust Frontend Integration:**
-   We built aggressive JSON sanitizers (`parseAIJson`) natively into our React frontend to guarantee that even the most complex AI outputs parse perfectly and never crash the learning canvas.
-
----
-
-## Core Platform Features
-
-### Magic Studio (Interactive Learning)
-The core of the platform is the **Magic Studio**, where students drag and drop code blocks (powered by Google Blockly) to solve programming puzzles. The environment is rich with custom sprites, stage areas, and instant visual feedback.
-
-### Admin Project Command Center
-A powerful, centralized dashboard for educators and administrators to manage the curriculum.
-- **AI-Powered Project Generation:** Educators can type a brief idea, and the AI will architect an entire lesson, complete with step-by-step instructions and solution code.
-- **Agent Training Matrix:** Define step-by-step logic and tips that train the AI on how to assist students with specific projects.
-- **Project Sequencing & Bulk Uploads:** Easily manage class levels, ordering, and structured curriculums via CSV.
-
----
-
-## Comprehensive Technology Stack
-
-- **AI Inference Hardware**: State-of-the-art **AMD Compute Infrastructure (AMD Instinct GPUs)**
-- **AI API Provider**: **Fireworks AI**
-- **Language Model**: Custom LoRA Fine-Tuned **Gemma 4 26B**
-- **Frontend Framework**: React (Vite)
-- **Styling**: Vanilla CSS & Bootstrap (Strictly NO Tailwind CSS for maximum custom aesthetic control)
-- **Visual Engine**: Google Blockly (Heavily Customized)
-- **Backend / Database**: Supabase (PostgreSQL, Real-time Auth, Storage)
+### 4. **EngagementAgent (Passive Session Observer)**
+- Monitors idle time, rapid click velocity, and total session duration.
+- Automatically triggers break suggestions or motivational prompts when disengagement or fatigue is detected.
 
 ---
 
-## Setup & Installation (Local Development)
+## ⚡ AMD Radeon GPU & ROCm Optimization
 
-Follow these instructions to set up the Kido Dev frontend on your local machine.
-
-### Prerequisites
-- Node.js (v16.x or higher)
-- npm or yarn
-- A Supabase account and project
-- A Fireworks AI API Key
-
-### Installation
-
-1. **Clone the repository:**
-   ```bash
-   git clone <your-repo-url>
-   cd kido-dev-frontend
-   ```
-
-2. **Install dependencies:**
-   ```bash
-   npm install
-   ```
-
-3. **Configure Environment Variables:**
-   Create a `.env` file in the root of the project and add your credentials:
-   ```env
-   VITE_SUPABASE_URL=your_supabase_project_url
-   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-   # Ensure your Fireworks API key is configured correctly in src/utils/aiClient.js
-   ```
-
-4. **Start the Development Server:**
-   ```bash
-   npm run dev
-   ```
-   The application will be accessible at `http://localhost:5173`.
+| Feature | Implementation |
+|---------|----------------|
+| **Cloud AMD Acceleration** | Fine-tuned `Gemma-26B-LoRA` hosted on **AMD Instinct MI300X** via Fireworks AI. |
+| **Local AMD Inference** | Native **AMD Radeon GPU acceleration** via ROCm & local Ollama (`llama3.1:8b`). |
+| **Live Telemetry & Metrics** | Tracks tokens/sec, latency (ms), and token generation per call in Supabase `agent_logs`. |
+| **AMD Benchmark Dashboard** | Dedicated Admin panel view for live benchmark testing and GPU performance analysis. |
 
 ---
 
-## Design Philosophy
+## 📂 Project Directory Structure
 
-Kido Dev is built with **children in mind**. Traditional coding platforms feel like IDEs; ours feels like a game. The UI intentionally avoids complex text walls in favor of rich aesthetics, vibrant colors, micro-animations, and game-like elements to capture attention and reward progress. All UI components are custom-styled to ensure a responsive, premium feel that keeps kids coming back.
+```text
+kidodev/
+├── frontend/                   # 🎨 React + Vite Web Application
+│   ├── src/
+│   │   ├── agents/             # Frontend Agent Orchestrator & Memory Store
+│   │   ├── components/         # Reusable UI components
+│   │   ├── pages/
+│   │   │   ├── Admin/          # Admin Dashboard, AMD Benchmark, & Live Agent Feed
+│   │   │   ├── Auth/           # Parent & School dashboards
+│   │   │   ├── Games/          # Canvas mini-games (Donut, Traffic, Maze)
+│   │   │   ├── MagicStudio/    # Blockly studio with Multi-turn Agent Hint Panel
+│   │   │   ├── Levels.jsx      # Learning world selection hub
+│   │   │   └── PersonalizedPath.jsx # AI Curriculum Planner (/my-path)
+│   │   └── utils/              # Client services & Supabase integration
+│   ├── public/                 # Static assets & sprites
+│   └── package.json            # Frontend scripts
+│
+├── backend/                    # ⚙️ Python FastAPI Agentic AI Engine
+│   ├── agents/                 # Tutor, Grader, Curriculum, Engagement, ReAct loop
+│   ├── inference/              # Fireworks AI (MI300X) & Ollama (ROCm) LLM clients
+│   ├── memory/                 # Short-term (ring-buffer) & Long-term (Supabase) memory
+│   ├── models/                 # Pydantic data schemas
+│   ├── routers/                # Agent & Benchmark endpoints
+│   ├── tools/                  # 7 Agent tools (DB queries, XML gap analysis)
+│   ├── main.py                 # FastAPI application entry point
+│   ├── requirements.txt        # Python dependencies
+│   └── start.bat               # Windows quick-start script
+│
+├── supabase/                   # 🗄️ Database Migrations
+│   └── migrations/             # 002_agent_tables.sql (agent_memory & agent_logs)
+│
+├── netlify.toml                # Netlify deployment configuration
+├── package.json                # Root CLI delegation scripts
+└── PROJECT_STRUCTURE.md       # Detailed architectural guide
+```
 
 ---
 
-## License & Compliance
+## 🔑 Hackathon Demo Credentials
 
-This project is fully open-source and released under the **MIT License**, complying completely with hackathon submission guidelines.
+Use these credentials to test user dashboards:
+
+- **School Admin Dashboard:** `adminschool@gmail.com` / `adminschool@gmail.com`
+- **Parent Dashboard:** `12345678` / `12345678` *(CNIC without dashes)*
+- **Student (Magic Studio) Login:** Secret Key `ADMINPARENTCHILD1`
+
+---
+
+## 🚀 Local Development Setup
+
+### 1. Database Setup
+Execute the migration script in your Supabase SQL Editor:
+- [`supabase/migrations/002_agent_tables.sql`](file:///d:/Projects/kidodev-1/supabase/migrations/002_agent_tables.sql)
+
+### 2. Start the Backend (FastAPI + AMD Inference)
+```bash
+cd backend
+pip install -r requirements.txt
+python main.py
+# Server runs on http://localhost:8000 (Docs at http://localhost:8000/docs)
+```
+
+### 3. Start the Frontend (React + Vite)
+```bash
+# From project root:
+npm install
+npm run dev
+# App runs on http://localhost:5173
+```
+
+> **Root CLI Shortcuts:**
+> - `npm run dev`: Starts frontend dev server
+> - `npm run dev:backend`: Starts FastAPI agent backend
+> - `npm run build`: Compiles production frontend bundle
+
+---
+
+## 🛠️ Comprehensive Tech Stack
+
+- **AMD Acceleration:** AMD Instinct MI300X (Cloud) + AMD Radeon GPU ROCm (Local)
+- **AI Inference Engine:** Fireworks AI & Ollama
+- **Model:** Fine-tuned `Gemma-26B-LoRA` (Blockly XML Code Synthesis & Pedagogy)
+- **Backend:** Python 3.10+, FastAPI, Pydantic v2, Uvicorn
+- **Frontend:** React 18, Vite, Google Blockly, Vanilla CSS
+- **Database & Auth:** Supabase (PostgreSQL, Realtime, RLS)
+
+---
+
+## 📜 License
+
+Released under the **MIT License** for open-source compliance.

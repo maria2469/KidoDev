@@ -103,3 +103,5 @@ backend/.mypy_cache/
 # Uploads (if generated)
 # ==========================
 uploads/
+
+migrations/

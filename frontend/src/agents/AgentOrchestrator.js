@@ -4,11 +4,11 @@
  * Falls back to direct Fireworks AI calls if the backend is unavailable.
  */
 
-import { generateLiveHint, generateLiveSolution } from '../../utils/aiClient';
+import { generateLiveHint, generateLiveSolution } from '../utils/aiClient';
 import {
   getSessionId, getChildId, getSessionState, addToConversation,
   getConversationHistory, incrementHintCount,
-} from '../memory/AgentMemoryStore';
+} from './memory/AgentMemoryStore';
 
 const BACKEND_URL = import.meta.env.VITE_AGENT_BACKEND_URL || 'http://localhost:8000';
 

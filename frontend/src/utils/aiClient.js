@@ -4,9 +4,9 @@
  * Strict Rule: No Emojis in any output.
  */
 
-const FIREWORKS_API_KEY = 'fw_9ZfHyth3fRmbfRn1h9qsZt'; // Replace with full key if needed, or inject securely
+const FIREWORKS_API_KEY = import.meta.env.VITE_FIREWORKS_API_KEY;
 const FIREWORKS_API_URL = 'https://api.fireworks.ai/inference/v1/chat/completions';
-const MODEL_ID = 'accounts/tomarianoor-9npw0j9i/models/gemma4-26b-a4b-kidtutor-lora#accounts/tomarianoor-9npw0j9i/deployments/nuhyho9n';
+const MODEL_ID = import.meta.env.VITE_FIREWORKS_MODEL || 'accounts/tomarianoor-9npw0j9i/models/gemma4-26b-a4b-kidtutor-lora#accounts/tomarianoor-9npw0j9i/deployments/nuhyho9n';
 
 /**
  * Robust JSON parser for AI outputs that strips control characters
