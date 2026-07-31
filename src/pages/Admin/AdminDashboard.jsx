@@ -7,7 +7,9 @@ import AdminUsers from './views/AdminUsers';
 import AdminContent from './views/AdminContent';
 import AdminSettings from './views/AdminSettings';
 import AdminLessons from './views/AdminLessons';
-import AdminProjectManager from './views/AdminProjectManager'; 
+import AdminProjectManager from './views/AdminProjectManager';
+import AmdBenchmark from './views/AmdBenchmark';
+import AgentActivityFeed from './views/AgentActivityFeed';
 import './AdminDashboard.css';
 
 const NAV_ITEMS = [
@@ -17,6 +19,8 @@ const NAV_ITEMS = [
     { id: 'users', label: 'User Base' },
     { id: 'content', label: 'Publish' },
     { id: 'settings', label: 'Access' },
+    { id: 'amd', label: 'AMD Engine', badge: 'AI' },
+    { id: 'agentfeed', label: 'Agent Feed', badge: 'Live' },
 ];
 
 const AdminDashboard = () => {
@@ -87,6 +91,8 @@ const AdminDashboard = () => {
             case 'users': return <AdminUsers />;
             case 'content': return <AdminContent />;
             case 'settings': return <AdminSettings />;
+            case 'amd': return <AmdBenchmark />;
+            case 'agentfeed': return <AgentActivityFeed />;
             default: return <AdminOverview />;
         }
     };
@@ -98,14 +104,26 @@ const AdminDashboard = () => {
                     <FaTachometerAlt style={{ color: '#8BC34A', fontSize: 18 }} />
                     <span style={{ fontWeight: 900, fontSize: 15, color: '#1E293B', letterSpacing: '-0.5px' }}>Kido Admin</span>
                 </div>
-                <div style={{ display: 'flex', gap: 16, flex: 1 }}>
+                <div style={{ display: 'flex', gap: 10, flex: 1, flexWrap: 'wrap' }}>
                     {NAV_ITEMS.map(item => (
                         <button
                             key={item.id}
                             className={`admin-nav-btn ${activeView === item.id ? 'active' : ''}`}
                             onClick={() => setActiveView(item.id)}
+                            style={{ position: 'relative' }}
                         >
                             {item.label}
+                            {item.badge && (
+                                <span style={{
+                                    position: 'absolute', top: -6, right: -6,
+                                    background: item.badge === 'Live' ? '#22c55e' : '#E31937',
+                                    color: '#fff', fontSize: 8, fontWeight: 900,
+                                    borderRadius: 6, padding: '1px 4px',
+                                    letterSpacing: '0.3px',
+                                }}>
+                                    {item.badge}
+                                </span>
+                            )}
                         </button>
                     ))}
                 </div>

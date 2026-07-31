@@ -27,6 +27,8 @@ import { recordBlockPlaced, resetHelpTracking } from './helpTracker';
 import SolveOverlay from './Solveoverlay';
 import SittingCatHelpButton from './SittingCatHelpButton';
 import SaluteSprite from './SalutingCat';
+import AgentHintPanel from './AgentHintPanel';
+import { initSession, recordBlockPlacedForEngagement } from '../../agents/memory/AgentMemoryStore';
 
 // Score at/above this is treated as a "best score" and triggers the salute.
 // Matches the existing Gold-tier threshold used elsewhere (LevelComplete's
@@ -136,6 +138,16 @@ export default function MagicStudio() {
 
     const tutorStateRef = useRef(tutorState);
     useEffect(() => { tutorStateRef.current = tutorState; }, [tutorState]);
+
+    // ── Agent session + live workspace block state ───────────────────────────
+    const [agentWorkspaceBlocks, setAgentWorkspaceBlocks] = useState([]);
+    useEffect(() => {
+        const kidChildId = localStorage.getItem('kido_child_id');
+        supabase.auth.getUser().then(({ data: { user } }) => {
+            const userId = kidChildId || user?.id;
+            if (userId) initSession(userId);
+        });
+    }, [lessonId]);
 
     // ── Help button ──────────────────────────────────────────────────────────
     const handleGetHelp = async () => {
@@ -256,6 +268,9 @@ export default function MagicStudio() {
                     const block = ws.getBlockById(id);
                     if (block) {
                         recordBlockPlaced(block.type);
+                        recordBlockPlacedForEngagement();
+                        // Keep agent workspace blocks in sync
+                        setAgentWorkspaceBlocks(ws.getAllBlocks(false).map(b => b.type));
                     }
                 }
             };
@@ -1004,6 +1019,17 @@ export default function MagicStudio() {
             </div>
 
             <SolveOverlay active={tutorState.solving} />
+
+            {/* ── AGENT HINT PANEL (multi-turn, memory-aware) ─────────────── */}
+            {!LESSON.is_prompt_project && (
+                <AgentHintPanel
+                    isMobile={isMobile}
+                    workspaceBlocks={agentWorkspaceBlocks}
+                    objective={LESSON.objective || LESSON.title || ''}
+                    lessonId={lessonId}
+                    onBlockHighlight={(blockType) => highlightNextBlock(blockType, wsRef.current, BLOCK_DB)}
+                />
+            )}
 
             {/* Salute plays first for a best-score (Gold-tier) submit, then
                 LevelComplete reveals via handleSaluteDone. */}

@@ -20,6 +20,7 @@ import AboutUs from './pages/Info/AboutUs';
 import HowToUse from './pages/Info/HowToUse';
 import Pricing from './pages/Info/Pricing';
 import PrivacyPolicy from './pages/Info/PrivacyPolicy';
+import PersonalizedPath from './pages/PersonalizedPath';
 
 
 import { ThemeProvider } from './utils/ThemeContext';
@@ -80,6 +81,11 @@ function App() {
                     </ProtectedRoute>
                   } />
                   <Route path="/admin" element={<AdminDashboard />} />
+                  <Route path="/my-path" element={
+                    <ProtectedRoute>
+                      <PersonalizedPath />
+                    </ProtectedRoute>
+                  } />
                 </Routes>
               </ErrorBoundary>
             </div>
