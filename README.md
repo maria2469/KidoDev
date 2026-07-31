@@ -142,12 +142,6 @@ Use these credentials to test user dashboards:
 
 ---
 
-## 🚀 Local Development Setup
-
-### 1. Database Setup
-Execute the migration script in your Supabase SQL Editor:
-- [`supabase/migrations/002_agent_tables.sql`](file:///d:/Projects/kidodev-1/supabase/migrations/002_agent_tables.sql)
-
 ### 2. Start the Backend (FastAPI + AMD Inference)
 ```bash
 cd backend
