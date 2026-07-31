@@ -4,7 +4,7 @@ Benchmark Routes — AMD GPU performance measurement endpoints.
 import time
 from fastapi import APIRouter
 from models.schemas import BenchmarkRequest, BenchmarkResponse
-from inference import fireworks_client, ollama_client
+from inference import fireworks_client, qwen_client
 from memory.long_term import log_agent_action
 
 router = APIRouter(prefix="/benchmark", tags=["AMD GPU Benchmark"])
@@ -17,12 +17,12 @@ async def run_benchmark(req: BenchmarkRequest):
     """
     Run a benchmark prompt on either:
     - Fireworks AI (AMD MI300X cloud GPUs)
-    - Local Ollama (AMD Radeon/ROCm)
+    - Local Qwen2.5 (AMD ROCm)
 
     Returns tokens/sec, latency, and model metadata.
     """
     if req.use_local:
-        result = await ollama_client.get_completion(
+        result = await qwen_client.get_completion(
             system_prompt="You are a helpful coding tutor for kids.",
             user_prompt=req.prompt or AMD_BENCHMARK_PROMPT,
         )
@@ -37,7 +37,7 @@ async def run_benchmark(req: BenchmarkRequest):
         child_id=None,
         agent_name="BenchmarkRunner",
         action="AMD GPU benchmark",
-        tool_used="fireworks" if not req.use_local else "ollama_rocm",
+        tool_used="fireworks" if not req.use_local else "qwen2.5_rocm",
         tokens_generated=result.get("tokens_generated", 0),
         latency_ms=result.get("latency_ms", 0),
         gpu_type=result.get("gpu_type", "AMD"),
@@ -80,14 +80,15 @@ async def get_benchmark_history(limit: int = 20):
 
 @router.get("/health", summary="Check inference backends health")
 async def health_check():
-    """Check availability of Fireworks AI and local Ollama."""
-    local_ok = await ollama_client.check_health()
+    """Check availability of Fireworks AI and local Qwen2.5."""
+    local_ok = await qwen_client.check_health()
     return {
         "fireworks_ai": {"status": "available", "gpu": "AMD MI300X", "model": fireworks_client.MODEL_ID},
-        "local_ollama": {
+        "local_qwen": {
             "status": "available" if local_ok else "not_running",
-            "gpu": "AMD ROCm",
-            "model": ollama_client.OLLAMA_MODEL,
-            "hint": "Run `ollama serve` to enable local AMD inference",
+            "gpu": "AMD ROCm (Qwen2.5-1.5B)",
+            "model": qwen_client.QWEN_MODEL,
+            "path": qwen_client.QWEN_MODEL_PATH,
+            "hint": f"Local model loaded from {qwen_client.QWEN_MODEL_PATH}",
         },
     }

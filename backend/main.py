@@ -10,7 +10,9 @@ Agents:
 
 Inference:
   Primary  — Fireworks AI (AMD MI300X cloud)
-  Fallback — Local Ollama (AMD Radeon ROCm)
+Inference:
+  Primary  — Fireworks AI (AMD MI300X cloud)
+  Fallback — Local Qwen2.5-1.5B (AMD ROCm)
 """
 import os
 from dotenv import load_dotenv
@@ -25,7 +27,7 @@ from routers.benchmark_routes import router as benchmark_router
 
 app = FastAPI(
     title="Kido Dev Agentic AI Backend",
-    description="Multi-agent system running on AMD GPUs (MI300X via Fireworks AI + local ROCm via Ollama)",
+    description="Multi-agent system running on AMD GPUs (MI300X via Fireworks AI + local ROCm via Qwen2.5-1.5B)",
     version="2.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
@@ -60,7 +62,7 @@ async def root():
         "agents": ["TutorAgent", "GraderAgent", "CurriculumPlannerAgent", "EngagementAgent"],
         "inference": {
             "primary": "Fireworks AI (AMD MI300X)",
-            "local": "Ollama (AMD ROCm)",
+            "local": "Qwen2.5-1.5B (AMD ROCm)",
         },
         "docs": "/docs",
     }

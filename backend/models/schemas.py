@@ -100,7 +100,7 @@ class EngagementResponse(BaseModel):
 
 class BenchmarkRequest(BaseModel):
     prompt: str
-    use_local: bool = False   # True = use Ollama/ROCm, False = Fireworks
+    use_local: bool = False   # True = use Qwen2.5/ROCm, False = Fireworks
 
 
 class BenchmarkResponse(BaseModel):
@@ -110,7 +110,7 @@ class BenchmarkResponse(BaseModel):
     tokens_per_second: float
     gpu_type: str
     model_name: str
-    provider: str   # "Fireworks AI (AMD MI300X)" or "Local Ollama (AMD ROCm)"
+    provider: str   # "Fireworks AI (AMD MI300X)" or "Local Qwen2.5 (AMD ROCm)"
 
 
 # ─── Agent Log ────────────────────────────────────────────────────────────────

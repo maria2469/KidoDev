@@ -125,12 +125,12 @@ async def get_completion(
                 return await get_completion(system_prompt, user_prompt, max_tokens, temperature, use_fallback=True)
 
             try:
-                from inference import ollama_client
-                if await ollama_client.check_health():
-                    print("[FireworksClient] Fireworks unavailable. Routing to local Ollama (AMD ROCm)...")
-                    return await ollama_client.get_completion(system_prompt, user_prompt, max_tokens)
+                from inference import qwen_client
+                if await qwen_client.check_health():
+                    print("[FireworksClient] Fireworks unavailable. Routing to local Qwen2.5 (AMD ROCm)...")
+                    return await qwen_client.get_completion(system_prompt, user_prompt, max_tokens)
             except Exception as o_err:
-                print(f"[FireworksClient] Ollama fallback check failed: {o_err}")
+                print(f"[FireworksClient] Qwen2.5 fallback check failed: {o_err}")
 
             return {
                 "text": "",
