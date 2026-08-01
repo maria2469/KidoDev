@@ -14,7 +14,7 @@
 
 Built specifically for **Track 2: Agentic AI**, Kido Dev moves beyond standard one-shot LLM prompts by implementing a state-of-the-art **Multi-Agent Architecture** running on **AMD Radeon GPUs (local ROCm)** and **AMD Cloud GPU Instances (Qwen 2.5 1.5B)**.
 
-FastAPI agent services are connected seamlessly to the React frontend client over secure **ngrok tunnels**, providing real-time multi-dimensional grading, Socratic hints, personalized learning pathways, and session engagement observation.
+FastAPI agent services are connected seamlessly to the React frontend client over secure **ngrok tunnels**, providing real-time multi-dimensional grading, Socratic hints, personalized learning pathways, and proactive session engagement observation.
 
 ---
 
@@ -35,7 +35,15 @@ FastAPI agent services are connected seamlessly to the React frontend client ove
 - **Short & Long-Term Memory:** Tracks past student struggles, hint frequency, and objective completion in Supabase.
 - **Clean Kid-Friendly Output:** Strips teacher notes, raw XML, and internal guidelines automatically.
 
-### 🤖 3. Multi-Agent Backend Architecture (FastAPI + AMD Cloud + Ngrok)
+### 👁️ 3. Proactive Engagement Agent (Workspace Observer)
+- **Active Workspace Observation:** Monitors student interactions, idle duration, rapid block placements, and session length in real time right inside the Workspace Editor (`MagicStudio`).
+- **Proactive Nudge Interventions:**
+  - *Idle Encouragement (`encourage`)*: Detects inactivity and delivers supportive guidance (`⚡ ENGAGEMENT AGENT: ENCOURAGE`).
+  - *Speed Challenge (`challenge`)*: Detects rapid-fire block dragging and prompts quality over speed (`⚡ ENGAGEMENT AGENT: CHALLENGE`).
+  - *Fatigue Break (`break`)*: Detects prolonged session length and suggests healthy physical stretches (`⚡ ENGAGEMENT AGENT: BREAK`).
+- **Visual Badging**: Displays a dedicated `⚡ ENGAGEMENT AGENT` badge in KidoBot message bubbles to highlight proactive AI interventions.
+
+### 🤖 4. Multi-Agent Backend Architecture (FastAPI + AMD Cloud + Ngrok)
 - **TutorAgent (`/agent/tutor`):** Multi-turn ReAct loop performing XML solution gap diffing against student workspace blocks.
 - **GraderAgent (`/agent/grade`):** Multi-dimensional scoring evaluating completed student projects across 4 dimensions:
   - *Correctness (0-25)*: Solution XML tree match.
@@ -45,12 +53,12 @@ FastAPI agent services are connected seamlessly to the React frontend client ove
 - **CurriculumPlannerAgent (`/agent/curriculum` & `/my-path`):** Dynamically builds personalized learning roadmaps based on weak block types and historic scores.
 - **EngagementAgent (`/agent/engage`):** Passive session observer detecting fatigue, idle time, or rapid click velocity.
 
-### 🎮 4. Gamified Learning Studio & Worlds
+### 🎮 5. Gamified Learning Studio & Worlds
 - **Blockly Visual Studio:** Full custom Scratch block suite (`s_when_flag`, `s_move`, `s_repeat`, `s_forever`, `s_if`, `s_say`, etc.) with live stage execution, costume switching, and sound effects.
 - **Themed Level Maps:** Multi-world progression maps (Princess, Wizard, and Adventure themes).
 - **Interactive Mini-Games:** Canvas-based coding games including *Catch Donut*, *Traffic Control*, and *Maze Runner*.
 
-### 📊 5. Analytics & Dashboards
+### 📊 6. Analytics & Dashboards
 - **School & Parent Dashboards:** Live progress tracking, engagement scores, and AI business insights.
 - **AMD Benchmark Dashboard (`/admin`):** Dedicated Admin panel for live GPU latency and throughput benchmark tests (`/benchmark/run`, `/benchmark/history`, `/benchmark/health`).
 
@@ -62,6 +70,7 @@ FastAPI agent services are connected seamlessly to the React frontend client ove
                ┌──────────────────────────────────────────────┐
                │         Frontend Agent Orchestrator          │
                │    - SpriteGuideAgent (Visual Demonstrator)   │
+               │    - EngagementAgent (Workspace Observer)     │
                └──────────────────────┬───────────────────────┘
                                       │ HTTPS / WSS via Ngrok Tunnel
                                       ▼
@@ -111,67 +120,13 @@ All backend endpoints are verified 100% working over HTTP/HTTPS:
 
 ---
 
-## ⚡ AMD Radeon GPU & Cloud Acceleration
+## 🔑 Demo Credentials & Quick Access
 
-| Feature | Implementation |
-|---------|----------------|
-| **AMD Cloud GPU Instance** | Fine-tuned `Qwen 2.5 1.5B` hosted locally on AMD GPU at `/workspace/workspace/KidoDev/models/qwen2.5-1.5b`. |
-| **Local AMD ROCm Acceleration** | Native AMD Radeon GPU acceleration via ROCm & local Ollama. |
-| **Ngrok Tunnel Integration** | Fast, secure HTTPS/WSS proxying (`https://khalilah-piteous-cortez.ngrok-free.dev -> http://localhost:8000`). |
-| **Live Telemetry & Metrics** | Tracks tokens/sec, latency (ms), and token generation per call in Supabase `agent_logs`. |
-| **AMD Benchmark Dashboard** | Dedicated Admin panel view (`/admin`) for live benchmark testing and GPU performance analysis. |
+Use these credentials to test user dashboards & student studio:
 
----
-
-## 📂 Project Directory Structure
-
-```text
-kidodev/
-├── frontend/                   # 🎨 React + Vite Web Application
-│   ├── src/
-│   │   ├── agents/             # Frontend Agent Orchestrator & Memory Store
-│   │   ├── components/         # Reusable UI components
-│   │   ├── pages/
-│   │   │   ├── Admin/          # Admin Dashboard & AMD GPU Benchmark Runner
-│   │   │   ├── Auth/           # Parent & School dashboards
-│   │   │   ├── Games/          # Canvas mini-games (Donut, Traffic, Maze)
-│   │   │   ├── MagicStudio/    # Blockly studio with Multi-turn Agent & Sprite Guide
-│   │   │   ├── Levels.jsx      # Learning world selection hub
-│   │   │   └── PersonalizedPath.jsx # AI Curriculum Planner (/my-path)
-│   │   └── utils/              # Client services & Supabase integration
-│   ├── .env                    # Frontend environment configuration (Ngrok & Supabase)
-│   ├── public/                 # Static assets & sprites
-│   └── package.json            # Frontend scripts
-│
-├── backend/                    # ⚙️ Python FastAPI Agentic AI Engine
-│   ├── agents/                 # Tutor, Grader, Curriculum, Engagement, ReAct loop
-│   ├── inference/              # Qwen 2.5 (AMD ROCm / Cloud), Ollama
-│   ├── memory/                 # Short-term (ring-buffer) & Long-term (Supabase) memory
-│   ├── models/                 # Pydantic data schemas
-│   ├── routers/                # Agent & Benchmark endpoints
-│   ├── tools/                  # 7 Agent tools (DB queries, XML gap analysis)
-│   ├── .env                    # Backend environment configuration
-│   ├── main.py                 # FastAPI application entry point
-│   ├── requirements.txt        # Python dependencies
-│   └── start.bat               # Windows quick-start script
-│
-├── supabase/                   # 🗄️ Database Migrations
-│   └── migrations/             # 002_agent_tables.sql (agent_memory & agent_logs)
-│
-├── netlify.toml                # Netlify deployment configuration
-├── package.json                # Root CLI delegation scripts
-└── PROJECT_STRUCTURE.md       # Detailed architectural guide
-```
-
----
-
-## 🔑 Hackathon Demo Credentials
-
-Use these credentials to test user dashboards:
-
-- **School Admin Dashboard:** `adminschool@gmail.com` / `adminschool@gmail.com`
-- **Parent Dashboard:** `12345678` / `12345678` *(CNIC without dashes)*
-- **Student (Magic Studio) Login:** Secret Key `ADMINPARENTCHILD1`
+- **Student Studio Access:** Secret Key `TEST1` or `ADMINPARENTCHILD1`
+- **Parent Dashboard:** Username `12345678` / Password `12345678`
+- **School Admin Dashboard:** Email `adminschool@gmail.com` / Password `adminschool@gmail.com`
 
 ---
 

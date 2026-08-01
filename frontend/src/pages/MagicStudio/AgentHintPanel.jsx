@@ -144,7 +144,7 @@ export default function AgentHintPanel({
             } catch (err) {
                 console.warn('[AgentHintPanel] Engagement observer warning:', err);
             }
-        }, 20000); // Check every 20 seconds for disengagement signals
+        }, 5000); // Check every 5 seconds for disengagement signals (fast UI testing)
 
         return () => clearInterval(checkInterval);
     }, [lessonId]);

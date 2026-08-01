@@ -6,7 +6,7 @@ from memory.long_term import log_agent_action, update_memory
 from models.schemas import EngagementRequest, EngagementResponse
 
 # Thresholds
-IDLE_THRESHOLD_SECONDS = 120       # 2 minutes idle = encourage
+IDLE_THRESHOLD_SECONDS = 5        # 5 seconds idle for fast UI testing
 RAPID_THRESHOLD_PER_MIN = 20       # too fast = challenge
 FATIGUE_THRESHOLD_SECONDS = 1200   # 20 mins = suggest break
 HIGH_HINT_THRESHOLD = 5            # 5+ hints = needs more support
