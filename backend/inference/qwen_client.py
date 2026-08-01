@@ -1,6 +1,6 @@
 """
-Local Qwen2.5 / Fireworks AI Client — Hybrid Inference Engine
-Supports Qwen2.5-1.5B model locally, Ollama, vLLM, and Fireworks AI API cloud fallback.
+Local Qwen2.5 Client — AMD ROCm GPU Inference Engine
+Supports Qwen2.5-1.5B model locally, Ollama, vLLM, and HuggingFace transformers pipeline.
 """
 import os
 import time
@@ -10,9 +10,6 @@ from pathlib import Path
 QWEN_MODEL_PATH = os.getenv("QWEN_MODEL_PATH", "/workspace/workspace/KidoDev/models/qwen2.5-1.5b")
 QWEN_HOST = os.getenv("QWEN_HOST", "http://localhost:11434")
 QWEN_MODEL = os.getenv("QWEN_MODEL", "qwen2.5-1.5b")
-
-FIREWORKS_API_KEY = os.getenv("FIREWORKS_API_KEY") or os.getenv("VITE_FIREWORKS_API_KEY")
-FIREWORKS_MODEL = os.getenv("FIREWORKS_MODEL") or os.getenv("VITE_FIREWORKS_MODEL") or "accounts/fireworks/models/qwen2p5-coder-32b-instruct"
 
 _model_cache = {}
 
@@ -56,53 +53,12 @@ async def get_completion(
     **kwargs
 ) -> dict:
     """
-    Call Qwen2.5 / Fireworks AI inference engine.
-    Tries Fireworks API cloud, local HTTP (Ollama/vLLM), and local HuggingFace transformers.
+    Call Qwen2.5 inference engine.
+    Tries local HTTP (Ollama/vLLM) and local HuggingFace transformers.
     """
     start_ms = time.time() * 1000
 
-    # 1. Try Fireworks AI Cloud API if API key is provided
-    if FIREWORKS_API_KEY:
-        try:
-            fw_url = "https://api.fireworks.ai/inference/v1/chat/completions"
-            fw_model = FIREWORKS_MODEL.split("#")[0] if "#" in FIREWORKS_MODEL else FIREWORKS_MODEL
-            payload = {
-                "model": fw_model,
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                "max_tokens": max_tokens,
-                "temperature": temperature,
-            }
-            headers = {
-                "Authorization": f"Bearer {FIREWORKS_API_KEY}",
-                "Content-Type": "application/json",
-            }
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                resp = await client.post(fw_url, json=payload, headers=headers)
-                if resp.status_code == 200:
-                    data = resp.json()
-                    end_ms = time.time() * 1000
-                    latency = int(end_ms - start_ms)
-                    content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
-                    tokens_out = data.get("usage", {}).get("completion_tokens", len(content.split()))
-                    tps = round(tokens_out / max(latency / 1000, 0.001), 1)
-
-                    return {
-                        "text": content,
-                        "tokens_generated": tokens_out,
-                        "latency_ms": latency,
-                        "tokens_per_second": tps,
-                        "model": fw_model,
-                        "gpu_type": "Fireworks AI Cloud GPU",
-                        "provider": "Fireworks AI API",
-                        "error": None,
-                    }
-        except Exception as e:
-            print(f"[QwenClient] Fireworks AI API attempt failed: {e}")
-
-    # 2. Try local HTTP endpoint (e.g. Ollama or local Qwen server)
+    # 1. Try local HTTP endpoint (e.g. Ollama or local Qwen server)
     hosts_to_try = []
     if QWEN_HOST and "8000" not in QWEN_HOST: # Avoid querying FastAPI app on 8000
         hosts_to_try.append(QWEN_HOST)
@@ -144,7 +100,7 @@ async def get_completion(
         except Exception:
             pass
 
-    # 3. Try local HuggingFace transformers pipeline fallback
+    # 2. Try local HuggingFace transformers pipeline fallback
     try:
         pipe = _get_local_pipeline()
         if pipe is not None:
@@ -170,7 +126,7 @@ async def get_completion(
     except Exception as e:
         print(f"[QwenClient] HuggingFace local execution error: {e}")
 
-    # 4. Fallback response indicating offline state so callers use smart fallback engine
+    # 3. Fallback response indicating offline state so callers use smart fallback engine
     model_exists = Path(QWEN_MODEL_PATH).exists()
     return {
         "text": "",
@@ -185,9 +141,7 @@ async def get_completion(
 
 
 async def check_health() -> bool:
-    """Check if any Qwen2.5 model backend is ready."""
-    if FIREWORKS_API_KEY:
-        return True
+    """Check if Qwen2.5 model backend is ready."""
     if Path(QWEN_MODEL_PATH).exists():
         return True
     try:

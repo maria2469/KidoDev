@@ -1,7 +1,7 @@
 /**
  * Agent Orchestrator — Frontend
  * Central coordinator that routes requests to the appropriate backend agent.
- * Falls back to direct Fireworks AI calls if the backend is unavailable.
+ * Falls back to smart hint engine if the backend is unavailable.
  */
 
 import { generateLiveHint, generateLiveSolution } from '../utils/aiClient';
@@ -24,10 +24,13 @@ const AGENT_HEADERS = {
 async function checkBackend() {
   if (_backendAvailable !== null) return _backendAvailable;
   try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 2500);
     const res = await fetch(`${BACKEND_URL}/health`, {
       headers: { 'ngrok-skip-browser-warning': 'true' },
-      signal: AbortSignal.timeout(4000),
+      signal: controller.signal,
     });
+    clearTimeout(timer);
     _backendAvailable = res.ok;
   } catch {
     _backendAvailable = false;
@@ -39,12 +42,11 @@ async function checkBackend() {
 setInterval(() => { _backendAvailable = null; }, 60_000);
 
 // ─── Generic Agent Request ─────────────────────────────────────────────────────
-async function agentRequest(path, body) {
-  const res = await fetch(`${BACKEND_URL}${path}`, {
+async function postAgent(endpoint, body) {
+  const res = await fetch(`${BACKEND_URL}${endpoint}`, {
     method: 'POST',
     headers: AGENT_HEADERS,
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(30_000),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -56,7 +58,7 @@ async function agentRequest(path, body) {
 // ─── TutorAgent ───────────────────────────────────────────────────────────────
 /**
  * Request a hint from the TutorAgent (multi-turn, memory-aware).
- * Falls back to direct Fireworks call if backend is down.
+ * Falls back to smart hint engine if backend is down.
  *
  * @param {object} params
  * @param {string[]} params.workspaceBlocks  - Block types currently in workspace
@@ -70,7 +72,7 @@ export async function requestHint({ workspaceBlocks, objective, lessonId, userMe
   const sessionId = getSessionId();
 
   if (!childId || !sessionId) {
-    // Fallback: direct Fireworks call
+    // Fallback: smart hint engine
     return _fallbackHint(workspaceBlocks, objective, userMessage);
   }
 

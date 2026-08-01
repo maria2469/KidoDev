@@ -1,6 +1,6 @@
 """
-Fireworks AI Client — Compatibility Wrapper
-Redirects 100% of completion calls to local Qwen 2.5 on AMD GPU.
+Qwen AI Client — Compatibility Wrapper
+Redirects completion calls directly to local Qwen 2.5 on AMD GPU.
 """
 from typing import Optional
 from inference import qwen_client
@@ -16,7 +16,7 @@ async def get_completion(
     use_fallback: bool = False,
 ) -> dict:
     """
-    Redirect all legacy calls directly to Qwen 2.5 on AMD GPU.
+    Redirect all calls directly to Qwen 2.5 on AMD GPU.
     """
     return await qwen_client.get_completion(
         system_prompt=system_prompt,

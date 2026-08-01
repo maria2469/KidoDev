@@ -688,12 +688,14 @@ const ParentDashboard = () => {
             const childIds = childrenData.map(c => c.id).filter(Boolean);
             const secretKeys = childrenData.map(c => c.secret_key).filter(Boolean);
             const queryIds = Array.from(new Set([...childIds, ...secretKeys]));
+            const isUUID = str => typeof str === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+            const validUuidQueryIds = queryIds.filter(isUUID);
 
             let completionsData = [];
-            if (queryIds.length > 0) {
+            if (validUuidQueryIds.length > 0) {
                 const [byChild, byUser] = await Promise.all([
-                    supabase.from('lesson_completions').select('*').in('child_id', queryIds),
-                    supabase.from('lesson_completions').select('*').in('user_id', queryIds)
+                    supabase.from('lesson_completions').select('*').in('child_id', validUuidQueryIds),
+                    supabase.from('lesson_completions').select('*').in('user_id', validUuidQueryIds)
                 ]);
                 const map = new Map();
                 (byChild.data || []).forEach(item => {
@@ -706,6 +708,7 @@ const ParentDashboard = () => {
                 });
                 completionsData = Array.from(map.values());
             }
+
 
             const groupedCompletions = {};
             completionsData.forEach(comp => {

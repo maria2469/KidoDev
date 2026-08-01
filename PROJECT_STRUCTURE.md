@@ -10,7 +10,7 @@ Welcome to the Kido Dev project architecture reference. This document provides a
 kidodev/
 ├── backend/                    # Python FastAPI Agentic AI Backend (AMD MI300X / ROCm)
 │   ├── agents/                 # Specialist agents (Tutor, Grader, Curriculum, Engagement, ReAct)
-│   ├── inference/              # Fireworks AI (MI300X) & Ollama (ROCm) LLM clients
+│   ├── inference/              # Qwen 2.5 (AMD ROCm / Cloud) & Ollama LLM clients
 │   ├── memory/                 # Short-term (ring-buffer) & Long-term (Supabase) memory
 │   ├── models/                 # Pydantic schemas
 │   ├── routers/                # Agent & Benchmark API routes
