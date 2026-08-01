@@ -103,5 +103,19 @@ backend/.mypy_cache/
 # Uploads (if generated)
 # ==========================
 uploads/
+# Python
+llm-env/
+*.pyc
+__pycache__/
+.ipynb_checkpoints/
 
+# Models
+models/
+
+# Ngrok
+ngrok.tgz
+
+# Environment files
+.env
+*.env
 migrations/
