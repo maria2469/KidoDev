@@ -15,12 +15,13 @@ def test_endpoint(name, path, method="GET", body=None):
         with urllib.request.urlopen(req, timeout=10) as resp:
             code = resp.getcode()
             res_json = json.loads(resp.read().decode("utf-8"))
-            print(f"✅ [{name}] HTTP {code}")
+            print(f"[SUCCESS] [{name}] HTTP {code}")
             print(json.dumps(res_json, indent=2))
             return True
     except Exception as e:
-        print(f"❌ [{name}] Error: {e}")
+        print(f"[ERROR] [{name}] Error: {e}")
         return False
+
 
 if __name__ == "__main__":
     print("--- TESTING BACKEND ENDPOINTS OVER NGROK ---")

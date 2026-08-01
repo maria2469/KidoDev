@@ -114,15 +114,15 @@ Respond in this exact JSON format:
 
     # ── 7. Parse response ─────────────────────────────────────────────────────
     parsed_json = None
-    if raw:
+    if raw and not raw.startswith("Qwen2.5") and "model ready at" not in raw:
         try:
             clean = re.sub(r"```json|```", "", raw).strip()
             parsed_json = json.loads(clean)
         except Exception:
-            if len(raw) > 10:
+            if len(raw) > 10 and not raw.startswith("Qwen2.5") and "model ready at" not in raw:
                 parsed_json = {"message": raw[:400], "next_block_type": gap_info["missing"][0] if gap_info["missing"] else None}
 
-    if parsed_json and parsed_json.get("message"):
+    if parsed_json and parsed_json.get("message") and not parsed_json.get("message", "").startswith("Qwen2.5"):
         hint_message = parsed_json.get("message")
         next_block_type = parsed_json.get("next_block_type") or (gap_info["missing"][0] if gap_info["missing"] else None)
         memory_note = parsed_json.get("memory_note")
@@ -132,6 +132,7 @@ Respond in this exact JSON format:
         next_block_type = smart_fallback["next_block_type"]
         memory_note = smart_fallback["memory_note"]
         reasoning_trace.append("Used KidoBot Smart Context Engine (LLM offline/fallback)")
+
 
     tokens_out = result.get("tokens_generated", 0)
     if tokens_out == 0 and hint_message:
