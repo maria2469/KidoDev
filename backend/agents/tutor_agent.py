@@ -6,7 +6,7 @@ import json
 import re
 from typing import Dict, Any, List
 
-from inference import fireworks_client
+from inference import qwen_client
 from memory.short_term import short_term_memory
 from memory.long_term import load_memory, update_memory, append_observation, log_agent_action
 from tools.registry import (
@@ -102,7 +102,7 @@ Respond in this exact JSON format:
 }}
 """
 
-    result = await fireworks_client.get_completion(
+    result = await qwen_client.get_completion(
         system_prompt=SYSTEM_PROMPT,
         user_prompt=context_block,
         max_tokens=512,
@@ -164,7 +164,7 @@ Respond in this exact JSON format:
         tools_used=["get_workspace_blocks", "get_solution_xml", "get_agent_memory"],
         tokens_generated=tokens_out,
         latency_ms=latency_val,
-        gpuType=result.get("gpu_type", "AMD MI300X via Fireworks AI"),
+        gpuType=result.get("gpu_type", "AMD ROCm GPU (Qwen2.5-1.5B)"),
         agent_memory_note=memory_note,
     )
 

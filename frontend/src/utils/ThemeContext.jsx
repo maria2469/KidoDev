@@ -25,7 +25,9 @@ import princessLineConnect from '../assets/no_bg_output/princiess_level-line_con
 import princessLine from '../assets/no_bg_output/priness_levels_line_nobg.webp';
 import princessNode from '../assets/no_bg_output/princess_level_node_nobg.webp';
 import princessImage from '../assets/no_bg_output/princess_level_image_nobg.webp';
-import princessMainBg from '../assets/princessmain.webp';
+
+// Dynamic URL for heavy 7.45MB background asset to avoid bundling in critical JS path
+const princessMainBg = new URL('../assets/princessmain.webp', import.meta.url).href;
 
 const ThemeContext = createContext();
 
@@ -68,7 +70,7 @@ export const ThemeProvider = ({ children }) => {
             sprite_logo: spriteLogo,
             hero: princessHero, // Character
             levels_stone: princessStone,
-            levels_hero: princessMainBg, // Map Background (7MB High-Res)
+            levels_hero: princessMainBg, // Map Background
             levels_conecting_line: princessLineConnect,
             levels_line: princessLine,
             levels_node: princessNode,
@@ -99,15 +101,17 @@ export const ThemeProvider = ({ children }) => {
         setTheme(newTheme);
         localStorage.setItem('kido_theme', newTheme);
 
-        // Sync with Supabase
-        const { data: { user } } = await supabase.auth.getUser();
+        // Sync with Supabase asynchronously
         const childId = localStorage.getItem('kido_child_id');
         const role = localStorage.getItem('kido_auth_role');
 
         if (role === 'kid' && childId) {
             await supabase.from('children').update({ theme: newTheme }).eq('id', childId);
-        } else if (role === 'parent' && user) {
-            await supabase.from('parent_profiles').update({ theme: newTheme }).eq('id', user.id);
+        } else if (role === 'parent') {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                await supabase.from('parent_profiles').update({ theme: newTheme }).eq('id', user.id);
+            }
         }
     };
 
@@ -144,14 +148,16 @@ export const ThemeProvider = ({ children }) => {
             }
         };
 
-        // Initial fetch ONCE on mount
+        // Only fetch remote theme if there is an active session role saved
         const childId = localStorage.getItem('kido_child_id');
         const role = localStorage.getItem('kido_auth_role');
-        supabase.auth.getUser().then(({ data: { user } }) => {
-            if (user || childId) {
-                fetchRemoteTheme(user?.id, role, childId);
-            }
-        });
+        if (role && (role === 'kid' || role === 'parent')) {
+            supabase.auth.getUser().then(({ data: { user } }) => {
+                if (user || childId) {
+                    fetchRemoteTheme(user?.id, role, childId);
+                }
+            });
+        }
 
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {

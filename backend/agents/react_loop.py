@@ -6,7 +6,7 @@ import json
 import re
 from typing import List, Dict, Any, Optional, Callable, Awaitable
 
-from inference import fireworks_client
+from inference import qwen_client
 from tools.registry import call_tool, TOOL_DEFINITIONS
 
 MAX_ITERATIONS = 5   # prevent infinite loops
@@ -69,7 +69,7 @@ Instructions:
 
 IMPORTANT: Respond with EITHER an ACTION+ARGS block OR a FINAL_ANSWER. Nothing else."""
 
-        result = await fireworks_client.get_completion(
+        result = await qwen_client.get_completion(
             system_prompt="You are a precise agentic reasoning system. Follow the ReAct format exactly.",
             user_prompt=react_prompt,
             max_tokens=1024,
@@ -133,7 +133,7 @@ IMPORTANT: Respond with EITHER an ACTION+ARGS block OR a FINAL_ANSWER. Nothing e
 
     # Max iterations reached — return whatever context we have
     trace.append("[Warning] Max iterations reached. Generating best-effort answer.")
-    fallback = await fireworks_client.get_completion(
+    fallback = await qwen_client.get_completion(
         system_prompt="Summarize the following context into a helpful response for the user.",
         user_prompt=context,
         max_tokens=512,

@@ -21,7 +21,7 @@ async def tutor_endpoint(req: TutorRequest):
     """
     Multi-turn TutorAgent endpoint.
     Maintains session memory, analyzes workspace gap, delivers a contextual hint.
-    Powered by AMD MI300X via Fireworks AI.
+    Powered by Qwen 2.5 on AMD GPU.
     """
     try:
         return await tutor_agent.run(req)

@@ -1,12 +1,13 @@
 """
 Grader Agent — Multi-dimensional scoring with natural language feedback.
 Evaluates: correctness + efficiency + independence + creativity.
+Powered by Qwen 2.5 on AMD GPU.
 """
 import re
 import json
 from typing import List, Dict, Any
 
-from inference import fireworks_client
+from inference import qwen_client
 from memory.long_term import update_memory, log_agent_action, load_memory
 from models.schemas import GradeRequest, GradeResponse
 
@@ -24,7 +25,7 @@ Evaluate across 4 dimensions (each 0-25):
 - Independence: Did they figure it out without AI help?
 - Creativity: Did they add extra blocks showing exploration?
 
-Respond ONLY with valid JSON:
+Respond ONLY with valid JSON matching this exact format:
 {
   "correctness_score": 20,
   "efficiency_score": 18,
@@ -38,17 +39,35 @@ Respond ONLY with valid JSON:
 """
 
 
+def _parse_grader_json(raw_text: str) -> dict:
+    """Robust JSON extractor for Qwen LLM output."""
+    if not raw_text:
+        return {}
+    clean = re.sub(r"```(?:json|JSON)?|```", "", raw_text).strip()
+    clean = re.sub(r"[\u0000-\u001F]+", " ", clean)
+    try:
+        return json.loads(clean)
+    except Exception:
+        match = re.search(r"\{.*\}", clean, re.DOTALL)
+        if match:
+            try:
+                return json.loads(match.group(0))
+            except Exception:
+                pass
+    return {}
+
+
 async def run(req: GradeRequest) -> GradeResponse:
     """Main entry point for GraderAgent."""
 
     # Extract blocks from XML
     student_blocks = _extract_blocks(req.workspace_xml)
-    helped_set = set(req.helped_block_types)
+    helped_set = set(req.helped_block_types or [])
 
     # Fetch solution for comparison
-    from tools.registry import get_solution_xml, get_lesson_details
+    from tools.registry import get_solution_xml
     solution_data = await get_solution_xml(req.lesson_id)
-    solution_xml = solution_data.get("xml", "")
+    solution_xml = (solution_data.get("xml") or "") if solution_data else ""
     solution_blocks = _extract_blocks(solution_xml)
 
     # Compute raw metrics
@@ -67,12 +86,12 @@ Matching blocks: {', '.join(matching) or 'None'}
 Missing blocks: {', '.join(missing) or 'None'}
 Extra/creative blocks: {', '.join(extra) or 'None'}
 Blocks placed with AI help: {', '.join(helped_in_workspace) or 'None'}
-Time taken: {req.time_seconds} seconds
+Time taken: {req.time_seconds or 0} seconds
 Total block count: {len(student_blocks)}
 
 Grade this student's work now."""
 
-    result = await fireworks_client.get_completion(
+    result = await qwen_client.get_completion(
         system_prompt=SYSTEM_PROMPT,
         user_prompt=user_prompt,
         max_tokens=512,
@@ -82,6 +101,8 @@ Grade this student's work now."""
     raw = result.get("text", "").strip()
 
     # Parse JSON response
+    parsed = _parse_grader_json(raw)
+    
     score = 0
     badge = "Participant"
     feedback = "Good effort! Keep practicing."
@@ -91,19 +112,23 @@ Grade this student's work now."""
     creativity = 0
     reasoning = ""
 
-    try:
-        clean = re.sub(r"```json|```", "", raw).strip()
-        parsed = json.loads(clean)
+    if parsed:
         correctness = int(parsed.get("correctness_score", 0))
         efficiency = int(parsed.get("efficiency_score", 0))
         independence = int(parsed.get("independence_score", 0))
         creativity = int(parsed.get("creativity_score", 0))
-        score = min(100, correctness + efficiency + independence + creativity)
-        badge = _get_badge(score)
-        feedback = parsed.get("feedback", feedback)
+        
+        parsed_total = parsed.get("total_score") or parsed.get("score")
+        if parsed_total is not None:
+            score = min(100, max(0, int(parsed_total)))
+        else:
+            score = min(100, max(0, correctness + efficiency + independence + creativity))
+            
+        badge = parsed.get("badge") or _get_badge(score)
+        feedback = parsed.get("feedback") or feedback
         reasoning = parsed.get("reasoning", "")
-    except Exception:
-        # Fallback to simple scoring
+    else:
+        # Fallback to smart rule-based scoring if LLM fails
         if solution_blocks:
             match_ratio = len(matching) / max(len(sol_set), 1)
             help_penalty = len(helped_in_workspace) / max(len(student_set), 1)
@@ -116,13 +141,21 @@ Grade this student's work now."""
         independence = score // 4
         creativity = score - (score // 4 * 3)
 
-    # Update student long-term memory with performance
-    long_mem = await load_memory(req.child_id)
-    weak = list(set(long_mem.get("weak_block_types", []) + list(missing)[:3]))[:10]
-    strong = list(set(long_mem.get("strong_block_types", []) + list(matching)[:3]))[:10]
-    await update_memory(req.child_id, {"weak_block_types": weak, "strong_block_types": strong})
+    # Update student long-term memory safely if child_id is provided
+    if req.child_id:
+        try:
+            long_mem = await load_memory(req.child_id)
+            weak_existing = long_mem.get("weak_block_types") or []
+            strong_existing = long_mem.get("strong_block_types") or []
+            
+            weak = list(set(weak_existing + list(missing)[:3]))[:10]
+            strong = list(set(strong_existing + list(matching)[:3]))[:10]
+            await update_memory(req.child_id, {"weak_block_types": weak, "strong_block_types": strong})
+        except Exception as e:
+            print(f"[GraderAgent] Memory update warning: {e}")
 
-    # Log
+    # Log agent action
+    gpu_label = result.get("gpu_type", "AMD ROCm GPU (Qwen2.5-1.5B)")
     await log_agent_action(
         child_id=req.child_id,
         agent_name="GraderAgent",
@@ -130,6 +163,7 @@ Grade this student's work now."""
         tool_used="get_solution_xml",
         tokens_generated=result.get("tokens_generated", 0),
         latency_ms=result.get("latency_ms", 0),
+        gpu_type=gpu_label,
     )
 
     return GradeResponse(

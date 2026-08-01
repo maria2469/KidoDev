@@ -288,7 +288,7 @@ export default function AgentHintPanel({
                                     KidoBot Agent
                                 </div>
                                 <div style={{ color: '#C2410C', fontSize: 11, fontWeight: 700 }}>
-                                    {isThinking ? 'Reasoning on AMD MI300X...' : 'Ready to help'}
+                                    {isThinking ? 'Reasoning on Qwen (AMD GPU)...' : 'FastAPI via ngrok • Qwen AMD GPU'}
                                 </div>
                             </div>
                         </div>
@@ -339,7 +339,7 @@ export default function AgentHintPanel({
                                 width: 6, height: 6, borderRadius: '50%', background: '#16A34A',
                             }} />
                             <span style={{ color: '#64748B', fontSize: 10, fontWeight: 600, letterSpacing: '0.2px' }}>
-                                {gpuInfo.gpu} · {gpuInfo.tokens} tokens · {gpuInfo.latency}ms
+                                {gpuInfo.gpu} · FastAPI via ngrok · {gpuInfo.tokens} tokens · {gpuInfo.latency}ms
                             </span>
                         </div>
                     )}

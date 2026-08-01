@@ -1,96 +1,74 @@
 /**
- * AI Client - Custom Fireworks Gemma Model Integration
- * Used for both Admin Project generation and Dashboard Analytics.
+ * AI Client — Qwen 2.5 on AMD GPU Integration
+ * Routes all AI generation through the FastAPI backend via ngrok tunnel.
  * Strict Rule: No Emojis in any output.
  */
 
-const FIREWORKS_API_KEY = import.meta.env.VITE_FIREWORKS_API_KEY;
-const FIREWORKS_API_URL = 'https://api.fireworks.ai/inference/v1/chat/completions';
-const MODEL_ID = import.meta.env.VITE_FIREWORKS_MODEL || 'accounts/tomarianoor-9npw0j9i/models/gemma4-26b-a4b-kidtutor-lora#accounts/tomarianoor-9npw0j9i/deployments/nuhyho9n';
-const FALLBACK_MODEL = 'accounts/fireworks/models/llama-v3p1-8b-instruct';
+const BACKEND_URL = import.meta.env.VITE_AGENT_BACKEND_URL || 'https://khalilah-piteous-cortez.ngrok-free.dev';
 
 /**
  * Robust JSON parser for AI outputs that strips control characters
  */
 const parseAIJson = (rawStr) => {
+    if (!rawStr) return null;
     let clean = rawStr.replace(/```json/gi, '').replace(/```/g, '').trim();
     try {
         return JSON.parse(clean);
     } catch (e) {
         console.warn('First JSON parse failed. Attempting aggressive control-character cleanup...', e.message);
-        // Remove unescaped newlines and other control chars from the raw string
         clean = clean.replace(/[\u0000-\u001F]+/g, ' '); 
         return JSON.parse(clean);
     }
 };
 
 const inFlightPromotions = new Map();
-const fireworksCache = new Map();
+const qwenCache = new Map();
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes cache TTL
 
 /**
- * Core function to communicate with Fireworks API with automatic fallback & deduplication
+ * Core function to communicate with Qwen on AMD GPU via FastAPI backend
  */
-const getFireworksCompletion = async (systemPrompt, userPrompt, useFallback = false) => {
-    const cacheKey = `${useFallback ? 'fallback' : 'primary'}_${systemPrompt}_${userPrompt}`;
+const getQwenCompletion = async (systemPrompt, userPrompt) => {
+    const cacheKey = `${systemPrompt}_${userPrompt}`;
 
-    // Return cached response if valid
-    if (fireworksCache.has(cacheKey)) {
-        const entry = fireworksCache.get(cacheKey);
+    if (qwenCache.has(cacheKey)) {
+        const entry = qwenCache.get(cacheKey);
         if (Date.now() - entry.timestamp < CACHE_TTL_MS) {
             return entry.result;
         }
-        fireworksCache.delete(cacheKey);
+        qwenCache.delete(cacheKey);
     }
 
-    // Return pending in-flight promise if duplicate request is currently executing
     if (inFlightPromotions.has(cacheKey)) {
         return inFlightPromotions.get(cacheKey);
     }
 
     const fetchPromise = (async () => {
-        const selectedModel = useFallback ? FALLBACK_MODEL : MODEL_ID;
         try {
-            const response = await fetch(FIREWORKS_API_URL, {
+            const response = await fetch(`${BACKEND_URL}/benchmark/run`, {
                 method: "POST",
                 headers: {
                     "Accept": "application/json",
                     "Content-Type": "application/json",
-                    "Authorization": `Bearer ${FIREWORKS_API_KEY}`
+                    "ngrok-skip-browser-warning": "true",
                 },
                 body: JSON.stringify({
-                    model: selectedModel,
-                    max_tokens: 4096,
-                    top_k: 40,
-                    presence_penalty: 0,
-                    frequency_penalty: 0,
-                    messages: [
-                        { role: "system", content: systemPrompt },
-                        { role: "user", content: userPrompt }
-                    ]
+                    prompt: `${systemPrompt}\n\nUser Request: ${userPrompt}`,
+                    use_local: true,
                 })
             });
 
             if (!response.ok) {
                 const errData = await response.json().catch(() => ({}));
-                const msg = errData.error?.message || `Fireworks API error: ${response.status}`;
-                if (!useFallback) {
-                    console.warn(`[aiClient] Model '${selectedModel}' failed (${msg}). Retrying with fallback '${FALLBACK_MODEL}'...`);
-                    return getFireworksCompletion(systemPrompt, userPrompt, true);
-                }
-                throw new Error(msg);
+                throw new Error(errData.detail || `FastAPI backend error: ${response.status}`);
             }
 
             const data = await response.json();
-            const result = data.choices?.[0]?.message?.content || '';
-            fireworksCache.set(cacheKey, { result, timestamp: Date.now() });
+            const result = data.response_text || '';
+            qwenCache.set(cacheKey, { result, timestamp: Date.now() });
             return result;
         } catch (err) {
-            if (!useFallback) {
-                console.warn(`[aiClient] Network error with '${selectedModel}'. Retrying with fallback '${FALLBACK_MODEL}'...`, err.message);
-                return getFireworksCompletion(systemPrompt, userPrompt, true);
-            }
-            console.error('Fireworks AI Error:', err);
+            console.error('[aiClient] Qwen on AMD GPU Backend Error:', err.message);
             throw err;
         } finally {
             inFlightPromotions.delete(cacheKey);
@@ -128,7 +106,7 @@ Respond ONLY with a valid JSON object matching this structure:
   "objective": "Clear student objective",
   "class_level": 1,
   "order_index": 1,
-  "agent_solve_description": "A very detailed description of exactly how the blocks should be assembled to solve the objective. E.g., 'Use a when flag clicked block, then a forever block, then move 10 steps inside.'",
+  "agent_solve_description": "A very detailed description of exactly how the blocks should be assembled to solve the objective.",
   "agent_tutorial_description": "Step-by-step instructions for the child. 1. Do this. 2. Do that.",
   "agent_solve_message": "A congratulatory message to the user.",
   "agent_solve_tip": "A short hint if they are stuck.",
@@ -139,7 +117,7 @@ Respond ONLY with a valid JSON object matching this structure:
 }`;
 
     try {
-        const response = await getFireworksCompletion(systemPrompt, prompt);
+        const response = await getQwenCompletion(systemPrompt, prompt);
         return parseAIJson(response);
     } catch (err) {
         console.error('Project Generation Error:', err);
@@ -179,7 +157,7 @@ Respond ONLY with a valid JSON object matching this structure:
     const userPrompt = `Metrics: Total Parents: ${metrics.totalParents}, Revenue: ${metrics.revenue}, Students: ${metrics.totalChildren}. Provide insights.`;
 
     try {
-        const response = await getFireworksCompletion(systemPrompt, userPrompt);
+        const response = await getQwenCompletion(systemPrompt, userPrompt);
         return parseAIJson(response);
     } catch (err) {
         console.error('Insight Generation Error:', err);
@@ -204,48 +182,41 @@ Respond ONLY with a valid JSON object matching this structure:
 {
   "blockType": "s_when_flag", 
   "message": "A short, encouraging sentence explaining what to do next without emojis"
-}
-
-Common block types: s_when_flag, s_move, s_say, s_forever, s_wait. Use the most logical one.`;
+}`;
 
     try {
-        const response = await getFireworksCompletion(systemPrompt, userMessage || "What is the next block?");
+        const response = await getQwenCompletion(systemPrompt, userMessage || "What is the next block?");
         const parsed = parseAIJson(response);
         if (parsed && parsed.message) return parsed;
     } catch (err) {
-        console.warn('Live Hint Cloud API Error — switching to local smart hint engine:', err.message);
+        console.warn('Live Hint Qwen API Error — switching to local smart hint engine:', err.message);
     }
 
     // Smart contextual fallback with Socratic tutor persona
     const q = (userMessage || '').toLowerCase();
     const blocks = workspaceBlocks || [];
     let suggestedBlock = "s_when_flag";
-    let blockCategory = "Events";
     let conceptHint = "To start your project, you'll need an event block from Events that gives your sprite a starting signal when you click the green flag!";
     let explicitHint = "Look in the Events panel for the Green Flag Event block and snap it at the top of your workspace!";
     let whyItMatters = "Computers need a clear starting signal! Just like a referee blowing a whistle to start a game, the Green Flag tells your character when to start running your code step-by-step.";
 
     if (!blocks.includes("s_when_flag")) {
         suggestedBlock = "s_when_flag";
-        blockCategory = "Events";
         conceptHint = "To start your project, you'll need an event block from Events that gives your sprite a starting signal when you click the green flag!";
         explicitHint = "Look in the Events panel for the Green Flag Event block and snap it at the top of your workspace!";
         whyItMatters = "Computers need a clear starting signal! Just like a referee blowing a whistle to start a game, the Green Flag tells your character when to start running your code step-by-step.";
     } else if (!blocks.includes("s_move") && !blocks.includes("s_say")) {
         suggestedBlock = "s_move";
-        blockCategory = "Motion";
         conceptHint = "To get your character walking across the stage, you'll need a block from Motion that moves your sprite forward!";
         explicitHint = "Look in the Motion panel for the Move Steps block and snap it directly below your Green Flag block!";
         whyItMatters = "Characters don't move on screen unless we give them motion commands! The Move block changes your sprite's position in the direction it is facing.";
     } else if (!blocks.includes("s_repeat") && !blocks.includes("s_forever")) {
         suggestedBlock = "s_repeat";
-        blockCategory = "Control";
         conceptHint = "To make your action happen multiple times without snapping 10 identical blocks together, you'll need a loop block from Control!";
         explicitHint = "Look in the Control panel for the Repeat Loop block and wrap it around your motion blocks!";
         whyItMatters = "Instead of snapping 10 identical blocks together, programmers use loops! A repeat block tells the computer to run actions automatically, keeping your code neat.";
     } else {
         suggestedBlock = "s_say";
-        blockCategory = "Looks";
         conceptHint = "To make your character talk or display a speech bubble, you'll need a communication block from Looks!";
         explicitHint = "Look in the Looks panel for the Say block and snap it into your script!";
         whyItMatters = "Characters communicate visually! The Say block pops up a speech bubble so players can read what your character is saying.";
@@ -299,11 +270,11 @@ Respond ONLY with a valid JSON object matching this structure:
 }`;
 
     try {
-        const response = await getFireworksCompletion(systemPrompt, "Generate the solution XML.");
+        const response = await getQwenCompletion(systemPrompt, "Generate the solution XML.");
         return parseAIJson(response);
     } catch (err) {
         console.error('Live Solution Generation Error:', err);
-        return null; // Let the caller fallback
+        return null;
     }
 };
 

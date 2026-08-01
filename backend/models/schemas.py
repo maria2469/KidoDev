@@ -29,14 +29,14 @@ class TutorResponse(BaseModel):
     tools_used: List[str] = []
     tokens_generated: int = 0
     latency_ms: int = 0
-    gpu_type: str = "AMD MI300X via Fireworks AI"
+    gpu_type: str = "AMD ROCm GPU (Qwen2.5-1.5B)"
     agent_memory_note: Optional[str] = None          # e.g. "I remember you struggled with loops"
 
 
 # ─── Grader Agent ─────────────────────────────────────────────────────────────
 
 class GradeRequest(BaseModel):
-    child_id: str
+    child_id: Optional[str] = None
     lesson_id: str
     workspace_xml: str
     helped_block_types: List[str] = []
@@ -100,7 +100,7 @@ class EngagementResponse(BaseModel):
 
 class BenchmarkRequest(BaseModel):
     prompt: str
-    use_local: bool = False   # True = use Qwen2.5/ROCm, False = Fireworks
+    use_local: bool = True   # Qwen2.5 / AMD ROCm GPU
 
 
 class BenchmarkResponse(BaseModel):
@@ -110,7 +110,7 @@ class BenchmarkResponse(BaseModel):
     tokens_per_second: float
     gpu_type: str
     model_name: str
-    provider: str   # "Fireworks AI (AMD MI300X)" or "Local Qwen2.5 (AMD ROCm)"
+    provider: str   # "Local Qwen2.5 (AMD ROCm)"
 
 
 # ─── Agent Log ────────────────────────────────────────────────────────────────

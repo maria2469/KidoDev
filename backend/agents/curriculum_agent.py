@@ -6,7 +6,7 @@ import json
 import re
 from typing import List, Dict, Any
 
-from inference import fireworks_client
+from inference import qwen_client
 from memory.long_term import load_memory, log_agent_action
 from tools.registry import get_all_lessons, get_completed_lessons, get_student_profile
 from models.schemas import CurriculumRequest, CurriculumResponse
@@ -107,7 +107,7 @@ All Available Lessons ({len(all_lessons)} total). Uncompleted ({len(uncompleted)
 
 Create a personalized curriculum plan for this student. Recommend 3-5 specific uncompleted lessons from the list above, prioritized by their current skill level and gaps."""
 
-    result = await fireworks_client.get_completion(
+    result = await qwen_client.get_completion(
         system_prompt=SYSTEM_PROMPT,
         user_prompt=user_prompt,
         max_tokens=1024,

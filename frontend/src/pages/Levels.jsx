@@ -184,56 +184,85 @@ export default function Levels() {
     /* fetch */
     useEffect(() => {
         const initLevels = async () => {
-            setLoading(true);
+            const localChildId = localStorage.getItem('kido_child_id');
+            const targetCol = localChildId ? 'child_id' : 'user_id';
+            
+            // Check cache for instant rendering
+            let hasCache = false;
+            try {
+                const cachedCurr = sessionStorage.getItem('kido_curriculum_cache');
+                const cachedComps = sessionStorage.getItem('kido_completions_cache');
+                if (cachedCurr) {
+                    setCurriculum(JSON.parse(cachedCurr));
+                    if (cachedComps) setCompletions(JSON.parse(cachedComps));
+                    setLoading(false);
+                    hasCache = true;
+                }
+            } catch (e) {
+                // Ignore cache parse error
+            }
+
+            if (!hasCache) {
+                setLoading(true);
+            }
+
             const safetyTimeout = setTimeout(() => {
                 setLoading(false);
-            }, 12000);
+            }, 10000);
 
             try {
-                const [clsR, lesR] = await Promise.all([
+                // Fetch curriculum and user profile data concurrently
+                const [clsR, lesR, childRes, compsRes] = await Promise.all([
                     supabase.from('course_classes').select('*').order('level', { ascending: true }),
                     supabase.from('lessons').select('*').order('order_index', { ascending: true }),
+                    localChildId ? supabase.from('children').select('payment_status, daily_limit_minutes').eq('id', localChildId).maybeSingle() : Promise.resolve(null),
+                    localChildId ? supabase.from('lesson_completions').select('lesson_id,score,badge').eq('child_id', localChildId) : Promise.resolve(null)
                 ]);
                 
                 if (clsR.data) {
-                    // KEEP ONLY 6 LEVELS AS REQUESTED
                     const limitedCls = clsR.data.slice(0, 6);
-                    setCurriculum(limitedCls.map(c => ({
+                    const formatted = limitedCls.map(c => ({
                         ...c,
                         id: `level-${c.level}`,
                         projects: lesR.data ? lesR.data.filter(l => l.class_level === c.level) : [],
-                    })));
+                    }));
+                    setCurriculum(formatted);
+                    try { sessionStorage.setItem('kido_curriculum_cache', JSON.stringify(formatted)); } catch(e){}
                 }
 
-                const { data: { user } } = await supabase.auth.getUser();
-                const localChildId = localStorage.getItem('kido_child_id');
-                const targetId = localChildId || user?.id;
-                const targetCol = localChildId ? 'child_id' : 'user_id';
-
-                // Check Payment Status Lock
+                // Payment & Limits check
                 let isPending = false;
-                if (localChildId) {
-                    const { data: childProfile } = await supabase.from('children').select('payment_status, daily_limit_minutes').eq('id', localChildId).single();
-                    if (childProfile?.payment_status === 'pending') isPending = true;
-                    if (childProfile?.daily_limit_minutes) {
-                        setLimitMinutes(childProfile.daily_limit_minutes);
+                if (localChildId && childRes?.data) {
+                    if (childRes.data.payment_status === 'pending') isPending = true;
+                    if (childRes.data.daily_limit_minutes) {
+                        setLimitMinutes(childRes.data.daily_limit_minutes);
                     }
-                } else if (user) {
-                    const { data: parentProfile } = await supabase.from('parent_profiles').select('payment_status').eq('id', user.id).maybeSingle();
-                    const { data: schoolProfile } = await supabase.from('schools').select('payment_status').eq('id', user.id).maybeSingle();
-                    if (parentProfile?.payment_status === 'pending' || schoolProfile?.payment_status === 'pending') isPending = true;
+                } else if (!localChildId) {
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (user) {
+                        const [{ data: parentProfile }, { data: schoolProfile }] = await Promise.all([
+                            supabase.from('parent_profiles').select('payment_status').eq('id', user.id).maybeSingle(),
+                            supabase.from('schools').select('payment_status').eq('id', user.id).maybeSingle()
+                        ]);
+                        if (parentProfile?.payment_status === 'pending' || schoolProfile?.payment_status === 'pending') isPending = true;
+
+                        const { data: userComps } = await supabase.from('lesson_completions').select('lesson_id,score,badge').eq('user_id', user.id);
+                        if (userComps) {
+                            const m = {};
+                            userComps.forEach(c => { m[c.lesson_id] = { score: c.score, badge: c.badge }; });
+                            setCompletions(m);
+                            try { sessionStorage.setItem('kido_completions_cache', JSON.stringify(m)); } catch(e){}
+                        }
+                    }
                 }
                 
                 setPaymentStatus(isPending ? 'pending' : 'paid');
 
-                if (targetId && !isPending) {
-                    const { data: comps } = await supabase
-                        .from('lesson_completions').select('lesson_id,score,badge').eq(targetCol, targetId);
-                    if (comps) {
-                        const m = {};
-                        comps.forEach(c => { m[c.lesson_id] = { score: c.score, badge: c.badge }; });
-                        setCompletions(m);
-                    }
+                if (localChildId && compsRes?.data && !isPending) {
+                    const m = {};
+                    compsRes.data.forEach(c => { m[c.lesson_id] = { score: c.score, badge: c.badge }; });
+                    setCompletions(m);
+                    try { sessionStorage.setItem('kido_completions_cache', JSON.stringify(m)); } catch(e){}
                 }
             } catch (err) {
                 console.error("Levels data sync error:", err);
@@ -286,11 +315,9 @@ export default function Levels() {
     const mood = catMood(overall.pct);
 
     const openLevel = (cls) => {
-        setMapLoading(true);
         setSelectedLevel(cls);
         setView('map');
         window.scrollTo(0, 0);
-        setTimeout(() => setMapLoading(false), 1200); /* SHOW LOADER FOR A PERFECT BEAT */
     };
     const goBack = () => { setView('selection'); setSelectedLevel(null); };
 

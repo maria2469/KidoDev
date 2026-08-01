@@ -10,15 +10,24 @@ import {
   getConversationHistory, incrementHintCount,
 } from './memory/AgentMemoryStore';
 
-const BACKEND_URL = import.meta.env.VITE_AGENT_BACKEND_URL || 'http://localhost:8000';
+const BACKEND_URL = import.meta.env.VITE_AGENT_BACKEND_URL || 'https://khalilah-piteous-cortez.ngrok-free.dev';
 
 let _backendAvailable = null; // null = unchecked, true/false = known
+
+// Standard headers for FastAPI backend via ngrok tunnel
+const AGENT_HEADERS = {
+  'Content-Type': 'application/json',
+  'ngrok-skip-browser-warning': 'true',
+};
 
 // ─── Backend Health Check ──────────────────────────────────────────────────────
 async function checkBackend() {
   if (_backendAvailable !== null) return _backendAvailable;
   try {
-    const res = await fetch(`${BACKEND_URL}/health`, { signal: AbortSignal.timeout(3000) });
+    const res = await fetch(`${BACKEND_URL}/health`, {
+      headers: { 'ngrok-skip-browser-warning': 'true' },
+      signal: AbortSignal.timeout(4000),
+    });
     _backendAvailable = res.ok;
   } catch {
     _backendAvailable = false;
@@ -33,7 +42,7 @@ setInterval(() => { _backendAvailable = null; }, 60_000);
 async function agentRequest(path, body) {
   const res = await fetch(`${BACKEND_URL}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: AGENT_HEADERS,
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(30_000),
   });
@@ -97,7 +106,7 @@ export async function requestHint({ workspaceBlocks, objective, lessonId, userMe
       toolsUsed: result.tools_used || [],
       tokensGenerated: result.tokens_generated || 0,
       latencyMs: result.latency_ms || 0,
-      gpuType: result.gpu_type || 'AMD MI300X via Fireworks AI',
+      gpuType: result.gpu_type || 'Qwen 2.5 on AMD GPU',
       agentMemoryNote: result.agent_memory_note || null,
     };
   } catch (err) {
@@ -113,11 +122,11 @@ async function _fallbackHint(workspaceBlocks, objective, userMessage = null) {
     return {
       hintMessage: msg,
       nextBlockType: result?.blockType || null,
-      reasoningTrace: ['KidoBot Reasoning Engine (Contextual Fallback Enabled)'],
+      reasoningTrace: ['KidoBot Reasoning Engine (Qwen / AMD GPU Fallback Enabled)'],
       toolsUsed: ['rule_based_tutor'],
       tokensGenerated: msg.split(' ').length,
       latencyMs: 12,
-      gpuType: 'AMD MI300X via Fireworks AI',
+      gpuType: 'Qwen 2.5 on AMD GPU',
       agentMemoryNote: null,
     };
   } catch {
@@ -128,7 +137,7 @@ async function _fallbackHint(workspaceBlocks, objective, userMessage = null) {
       toolsUsed: [],
       tokensGenerated: 10,
       latencyMs: 10,
-      gpuType: 'AMD MI300X via Fireworks AI',
+      gpuType: 'Qwen 2.5 on AMD GPU',
       agentMemoryNote: null,
     };
   }
@@ -355,12 +364,12 @@ export async function checkEngagement({ lessonId }) {
   }
 }
 
-// ─── AMD Benchmark ────────────────────────────────────────────────────────────
+// ─── AMD Benchmark & Health ───────────────────────────────────────────────────
 export async function runBenchmark(prompt = '', useLocal = false) {
   try {
     const res = await fetch(`${BACKEND_URL}/benchmark/run`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: AGENT_HEADERS,
       body: JSON.stringify({ prompt, use_local: useLocal }),
       signal: AbortSignal.timeout(60_000),
     });
@@ -373,6 +382,7 @@ export async function runBenchmark(prompt = '', useLocal = false) {
 export async function fetchBenchmarkHistory() {
   try {
     const res = await fetch(`${BACKEND_URL}/benchmark/history?limit=30`, {
+      headers: { 'ngrok-skip-browser-warning': 'true' },
       signal: AbortSignal.timeout(5000),
     });
     return res.ok ? await res.json() : { logs: [] };
@@ -383,9 +393,23 @@ export async function fetchBenchmarkHistory() {
 
 export async function fetchBackendHealth() {
   try {
-    const res = await fetch(`${BACKEND_URL}/benchmark/health`, { signal: AbortSignal.timeout(4000) });
+    const res = await fetch(`${BACKEND_URL}/benchmark/health`, {
+      headers: { 'ngrok-skip-browser-warning': 'true' },
+      signal: AbortSignal.timeout(4000),
+    });
     return res.ok ? await res.json() : null;
   } catch {
     return null;
   }
 }
+
+export function getBackendArchitectureInfo() {
+  return {
+    frontend: 'React (Vite)',
+    tunnel: 'ngrok',
+    backend: 'FastAPI',
+    model: 'Qwen 2.5 on AMD GPU',
+    backendUrl: BACKEND_URL,
+  };
+}
+

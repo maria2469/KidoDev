@@ -42,7 +42,13 @@ def _get_local_pipeline():
         return None
 
 
-async def get_completion(system_prompt: str, user_prompt: str, max_tokens: int = 512) -> dict:
+async def get_completion(
+    system_prompt: str,
+    user_prompt: str,
+    max_tokens: int = 512,
+    temperature: float = 0.7,
+    **kwargs
+) -> dict:
     """
     Call Qwen2.5 inference engine (Local Transformers, vLLM or local endpoint).
     Returns same shape as fireworks_client.get_completion().
@@ -58,7 +64,7 @@ async def get_completion(system_prompt: str, user_prompt: str, max_tokens: int =
             {"role": "user", "content": user_prompt},
         ],
         "max_tokens": max_tokens,
-        "temperature": 0.7,
+        "temperature": temperature,
     }
 
     try:
@@ -90,7 +96,7 @@ async def get_completion(system_prompt: str, user_prompt: str, max_tokens: int =
         pipe = _get_local_pipeline()
         if pipe is not None:
             prompt_text = f"<|im_start|>system\n{system_prompt}<|im_end|>\n<|im_start|>user\n{user_prompt}<|im_end|>\n<|im_start|>assistant\n"
-            out = pipe(prompt_text, max_new_tokens=max_tokens, do_sample=True, temperature=0.7)
+            out = pipe(prompt_text, max_new_tokens=max_tokens, do_sample=True, temperature=temperature)
             gen_text = out[0]["generated_text"].replace(prompt_text, "").replace("<|im_end|>", "").strip()
 
             end_ms = time.time() * 1000

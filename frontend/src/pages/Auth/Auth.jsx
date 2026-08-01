@@ -9,12 +9,6 @@ import { useTheme } from '../../utils/ThemeContext';
 import loginBgForest from '../../assets/no_bg_output/loginbg.jpg';
 import loginBgPrincess from '../../assets/no_bg_output/loginbgbarbie.jpg';
 
-// Preload the background images so they display instantly
-const imgForest = new Image();
-imgForest.src = loginBgForest;
-const imgPrincess = new Image();
-imgPrincess.src = loginBgPrincess;
-
 const Auth = () => {
     const {
         isLogin, setIsLogin, authType, setAuthType, loading, error, handleAuth,
@@ -22,6 +16,14 @@ const Auth = () => {
         parentName, setParentName, secretKey, setSecretKey
     } = useAuthForm();
     const { theme } = useTheme();
+
+    React.useEffect(() => {
+        // Preload background images non-blockingly after mount
+        const imgForest = new Image();
+        imgForest.src = loginBgForest;
+        const imgPrincess = new Image();
+        imgPrincess.src = loginBgPrincess;
+    }, []);
 
     const isSignup = !isLogin && authType !== 'kid';
     const colClass = isSignup ? "col-12 col-md-10 col-lg-9" : "col-12 col-md-8 col-lg-6";
