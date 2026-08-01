@@ -39,6 +39,7 @@ Create a personalized learning plan. Respond ONLY with valid JSON:
 async def run(req: CurriculumRequest) -> CurriculumResponse:
     """Main entry point for CurriculumPlannerAgent."""
 
+    print(f"\n[CurriculumAgent] Executing learning path synthesis for child: '{req.child_id}'")
     reasoning_trace = []
 
     # ── 1. Load all context ───────────────────────────────────────────────────
@@ -69,6 +70,7 @@ async def run(req: CurriculumRequest) -> CurriculumResponse:
             completed_map[l_id] = c
 
     completed = list(completed_map.values())
+    print(f"[CurriculumAgent] Database + Payload completed count: {len(completed)}")
 
     reasoning_trace.append(f"Found {len(all_lessons)} total lessons, {len(completed)} completed")
 
@@ -92,6 +94,8 @@ async def run(req: CurriculumRequest) -> CurriculumResponse:
     scores = [float(c.get("score", 0)) for c in completed if c.get("score") is not None]
     avg_score = (sum(scores) / len(scores)) if scores else 85.0
 
+    print(f"[CurriculumAgent] Analyzing gaps: Weak blocks={weak_blocks}, Strong blocks={strong_blocks}, Avg score={avg_score:.1f}%")
+
     user_prompt = f"""Student Profile:
 - Level: {req.current_level or profile.get('level', 'Bronze')}
 - Total XP: {req.total_xp or profile.get('total_xp', 0)}
@@ -107,6 +111,7 @@ All Available Lessons ({len(all_lessons)} total). Uncompleted ({len(uncompleted)
 
 Create a personalized curriculum plan for this student. Recommend 3-5 specific uncompleted lessons from the list above, prioritized by their current skill level and gaps."""
 
+    print(f"[CurriculumAgent] Requesting completion from Qwen 2.5 inference engine...")
     result = await qwen_client.get_completion(
         system_prompt=SYSTEM_PROMPT,
         user_prompt=user_prompt,
@@ -115,7 +120,9 @@ Create a personalized curriculum plan for this student. Recommend 3-5 specific u
     )
 
     raw = result.get("text", "").strip()
+    print(f"[CurriculumAgent] Qwen completion finished ({result.get('tokens_generated', 0)} tokens in {result.get('latency_ms', 0)}ms)")
     reasoning_trace.append("Generated personalized curriculum via AMD MI300X inference")
+
 
     # ── 3. Parse response ─────────────────────────────────────────────────────
     recommended = []

@@ -303,7 +303,7 @@ const EmptyNote = ({ children }) => (
 );
 
 /* ─────────────────────────────────────
-   AI CHILD INSIGHTS PANEL (Strengths & Weaknesses)
+   AI CHILD INSIGHTS PANEL (Practice These More & Data Insights)
    ───────────────────────────────────── */
 const insightsCache = {};
 
@@ -314,7 +314,6 @@ const AiChildInsightsPanel = ({ child, completions }) => {
     useEffect(() => {
         if (!child?.id) return;
 
-        // Reuse cached result if already fetched once
         if (insightsCache[child.id]) {
             setCurriculum(insightsCache[child.id]);
             setLoading(false);
@@ -349,7 +348,7 @@ const AiChildInsightsPanel = ({ child, completions }) => {
         <div style={{ textAlign: 'center', padding: '24px 16px', background: '#F8FAFC', borderRadius: 16, border: '1px solid #E2E8F0', marginBottom: 20 }}>
             <FaCircleNotch className="fa-spin-custom text-primary mb-2" size={22} />
             <div style={{ fontSize: '0.82rem', color: '#64748B', fontWeight: 700 }}>
-                AI is evaluating {child.name}'s strengths &amp; areas to improve...
+                AI is analyzing {child.name}'s performance data to generate practice recommendations...
             </div>
         </div>
     );
@@ -358,6 +357,61 @@ const AiChildInsightsPanel = ({ child, completions }) => {
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 20 }}>
+            {/* ── PRACTICE THESE MORE SECTION ── */}
+            <div style={{
+                background: 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)',
+                border: '1.5px solid #FDE68A',
+                borderRadius: 18, padding: '18px',
+                boxShadow: '0 4px 14px rgba(245,158,11,0.08)'
+            }}>
+                <div style={{ fontWeight: 900, fontSize: '0.88rem', color: '#92400E', marginBottom: 6, letterSpacing: '0.04em', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span>🎯</span> Practice These More — Recommended for {child.name}
+                </div>
+                <div style={{ fontSize: '0.8rem', color: '#78350F', fontWeight: 600, marginBottom: 14, lineHeight: 1.5 }}>
+                    Based on {child.name}'s recent scores, hints requested, and mission attempts:
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {curriculum.recommended_lessons?.length > 0 ? (
+                        curriculum.recommended_lessons.map((rec, i) => {
+                            const isHigh = rec.priority === 'high';
+                            const badgeColor = isHigh ? '#EF4444' : '#F59E0B';
+                            return (
+                                <div key={i} style={{
+                                    background: '#FFFFFF',
+                                    border: '1px solid #FCD34D',
+                                    borderRadius: 14, padding: '12px 14px',
+                                    boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
+                                }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                                        <div style={{ fontWeight: 800, fontSize: '0.88rem', color: '#1E293B' }}>
+                                            {rec.title || rec.lesson_id}
+                                        </div>
+                                        <span style={{
+                                            background: `${badgeColor}18`,
+                                            color: badgeColor,
+                                            border: `1px solid ${badgeColor}40`,
+                                            borderRadius: 8, padding: '2px 8px',
+                                            fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase'
+                                        }}>
+                                            {isHigh ? 'High Priority' : 'Recommended'}
+                                        </span>
+                                    </div>
+                                    <div style={{ fontSize: '0.78rem', color: '#64748B', lineHeight: 1.5, display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                                        <span style={{ color: '#D97706', fontWeight: 900 }}>Reason:</span>
+                                        <span style={{ color: '#334155', fontWeight: 600 }}>{rec.reason}</span>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    ) : (
+                        <div style={{ fontSize: '0.78rem', color: '#78350F', fontStyle: 'italic' }}>
+                            {child.name} is caught up on all practice missions!
+                        </div>
+                    )}
+                </div>
+            </div>
+
             {/* AI Learning Summary */}
             <div style={{
                 background: 'linear-gradient(135deg, #EFF6FF 0%, #E0F2FE 100%)',
@@ -366,7 +420,7 @@ const AiChildInsightsPanel = ({ child, completions }) => {
                 boxShadow: '0 4px 14px rgba(2,132,199,0.06)'
             }}>
                 <div style={{ fontWeight: 900, fontSize: '0.8rem', color: '#0284C7', marginBottom: 8, letterSpacing: '0.05em', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span>🧠</span> AI Learning Summary
+                    <span>🧠</span> Performance Analysis &amp; Progress Summary
                 </div>
                 <div style={{ fontSize: '0.85rem', color: '#0F172A', fontWeight: 600, lineHeight: 1.6, marginBottom: 12 }}>
                     {curriculum.learning_path_summary}

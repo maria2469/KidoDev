@@ -3,6 +3,7 @@
   <p><strong>Multi-Agent Pedagogical Copilot Powered by AMD Compute (MI300X & ROCm GPU) & Ngrok Tunneling</strong></p>
   <p>🏆 <strong>AMD Hackathon — Track 2: Agentic AI Submission</strong></p>
   <p>🌐 <strong>Live Demo:</strong> <a href="https://kidodevai.netlify.app">kidodevai.netlify.app</a></p>
+  <p>🔗 <strong>Backend Ngrok Gateway:</strong> <code>https://khalilah-piteous-cortez.ngrok-free.dev</code></p>
 </div>
 
 ---
@@ -13,11 +14,11 @@
 
 Built specifically for **Track 2: Agentic AI**, Kido Dev moves beyond standard one-shot LLM prompts by implementing a state-of-the-art **Multi-Agent Architecture** running on **AMD Radeon GPUs (local ROCm)** and **AMD Cloud GPU Instances (Qwen 2.5 1.5B)**.
 
-FastAPI agent services are connected seamlessly to the React frontend client over secure **ngrok tunnels**.
+FastAPI agent services are connected seamlessly to the React frontend client over secure **ngrok tunnels**, providing real-time multi-dimensional grading, Socratic hints, personalized learning pathways, and session engagement observation.
 
 ---
 
-## ✨ Features Working So Far
+## ✨ Working Features & Agentic Capabilities
 
 ### 🐱 1. Interactive Animated Sprite Guide Agent ("Cat Co-Pilot")
 - **Live Drag-and-Drop Demonstrations:** Watch the animated Cat Agent dynamically open the Scratch block flyout menu, grab target blocks with paw precision, drag them across the screen, and snap them into place on the workspace.
@@ -30,28 +31,28 @@ FastAPI agent services are connected seamlessly to the React frontend client ove
   - *General Hints ("Give me a hint"):* Explains the computer science **concept** needed (e.g. *"To make your character walk forward, you need a block that changes your sprite's position!"*) without blurting out the block name.
   - *Explicit Queries ("What block next?"):* Reveals the exact block name and UI location (*"Look in the Motion panel for the Move Steps block and snap it below your Green Flag block!"*).
   - *Why Queries ("Why?"):* Explains the real-world computer science rationale in simple, engaging terms.
-- **Hybrid Inference Fallback Engine:** Features seamless multi-tier fallback (Local AMD ROCm -> KidoBot Smart Context Engine) so children receive helpful Socratic responses even when offline.
+- **Hybrid Inference Fallback Engine:** Features multi-tier fallback (Local AMD ROCm -> KidoBot Smart Context Engine) ensuring children always receive contextual hints.
 - **Short & Long-Term Memory:** Tracks past student struggles, hint frequency, and objective completion in Supabase.
-- **Clean Kid-Friendly Output:** Strips teacher notes, raw XML, and internal guidelines.
+- **Clean Kid-Friendly Output:** Strips teacher notes, raw XML, and internal guidelines automatically.
 
 ### 🤖 3. Multi-Agent Backend Architecture (FastAPI + AMD Cloud + Ngrok)
-- **TutorAgent:** Multi-turn ReAct loop performing XML solution gap diffing against student workspace blocks.
-- **GraderAgent:** Evaluates completed projects across 4 dimensions:
+- **TutorAgent (`/agent/tutor`):** Multi-turn ReAct loop performing XML solution gap diffing against student workspace blocks.
+- **GraderAgent (`/agent/grade`):** Multi-dimensional scoring evaluating completed student projects across 4 dimensions:
   - *Correctness (0-25)*: Solution XML tree match.
   - *Efficiency (0-25)*: Minimal block count.
-  - *Independence (0-25)*: Low AI hint dependency.
+  - *Independence (0-25)*: Minimal AI hint dependency.
   - *Creativity (0-25)*: Exploratory block usage.
-- **CurriculumPlannerAgent (`/my-path`):** Dynamically builds personalized learning roadmaps based on weak block types and historic scores.
-- **EngagementAgent:** Passive session observer detecting fatigue, idle time, or rapid click velocity.
+- **CurriculumPlannerAgent (`/agent/curriculum` & `/my-path`):** Dynamically builds personalized learning roadmaps based on weak block types and historic scores.
+- **EngagementAgent (`/agent/engage`):** Passive session observer detecting fatigue, idle time, or rapid click velocity.
 
 ### 🎮 4. Gamified Learning Studio & Worlds
 - **Blockly Visual Studio:** Full custom Scratch block suite (`s_when_flag`, `s_move`, `s_repeat`, `s_forever`, `s_if`, `s_say`, etc.) with live stage execution, costume switching, and sound effects.
 - **Themed Level Maps:** Multi-world progression maps (Princess, Wizard, and Adventure themes).
 - **Interactive Mini-Games:** Canvas-based coding games including *Catch Donut*, *Traffic Control*, and *Maze Runner*.
 
-### 📊 5. Analytics & School Dashboards
+### 📊 5. Analytics & Dashboards
 - **School & Parent Dashboards:** Live progress tracking, engagement scores, and AI business insights.
-- **AMD Benchmark Dashboard:** Dedicated Admin panel for live GPU latency and throughput benchmark tests.
+- **AMD Benchmark Dashboard (`/admin`):** Dedicated Admin panel for live GPU latency and throughput benchmark tests (`/benchmark/run`, `/benchmark/history`, `/benchmark/health`).
 
 ---
 
@@ -92,6 +93,24 @@ FastAPI agent services are connected seamlessly to the React frontend client ove
 
 ---
 
+## ⚡ Tested & Verified Agent Endpoints
+
+All backend endpoints are verified 100% working over HTTP/HTTPS:
+
+| Endpoint | Method | Purpose | Verified Payload Contract |
+|---|---|---|---|
+| `/health` | `GET` | Backend health check | `{"status": "healthy"}` |
+| `/agent/tutor` | `POST` | Multi-turn ReAct tutor hint | `hint_message`, `next_block_type`, `reasoning_trace`, `tools_used`, `tokens_generated`, `latency_ms` |
+| `/agent/grade` | `POST` | 4-Dimensional lesson grading | `score`, `badge`, `feedback`, `correctness_score`, `efficiency_score`, `independence_score`, `creativity_score` |
+| `/agent/curriculum` | `POST` | Personalized learning path | `recommended_lessons`, `learning_path_summary`, `skill_gaps`, `strengths`, `next_challenge`, `weekly_goal` |
+| `/agent/engage` | `POST` | Disengagement detection | `intervention_needed`, `intervention_type`, `message`, `animation_trigger` |
+| `/agent/memory/{child}/{session}` | `DELETE` | Clear short-term memory | `{"status": "cleared", "child_id": "...", "session_id": "..."}` |
+| `/benchmark/run` | `POST` | AMD GPU inference benchmark | `response_text`, `tokens_generated`, `latency_ms`, `tokens_per_second`, `gpu_type`, `provider` |
+| `/benchmark/history` | `GET` | Supabase telemetry log history | `{"logs": [...]}` |
+| `/benchmark/health` | `GET` | Qwen 2.5 inference health | `{"local_qwen": {...}}` |
+
+---
+
 ## ⚡ AMD Radeon GPU & Cloud Acceleration
 
 | Feature | Implementation |
@@ -100,7 +119,7 @@ FastAPI agent services are connected seamlessly to the React frontend client ove
 | **Local AMD ROCm Acceleration** | Native AMD Radeon GPU acceleration via ROCm & local Ollama. |
 | **Ngrok Tunnel Integration** | Fast, secure HTTPS/WSS proxying (`https://khalilah-piteous-cortez.ngrok-free.dev -> http://localhost:8000`). |
 | **Live Telemetry & Metrics** | Tracks tokens/sec, latency (ms), and token generation per call in Supabase `agent_logs`. |
-| **AMD Benchmark Dashboard** | Dedicated Admin panel view for live benchmark testing and GPU performance analysis. |
+| **AMD Benchmark Dashboard** | Dedicated Admin panel view (`/admin`) for live benchmark testing and GPU performance analysis. |
 
 ---
 

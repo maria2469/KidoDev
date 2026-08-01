@@ -87,7 +87,7 @@ export async function requestHint({ workspaceBlocks, objective, lessonId, userMe
   const history = getConversationHistory();
 
   try {
-    const result = await agentRequest('/agent/tutor', {
+    const result = await postAgent('/agent/tutor', {
       child_id: childId,
       session_id: sessionId,
       lesson_id: lessonId,
@@ -159,7 +159,7 @@ export async function requestGrade({ lessonId, workspaceXml, helpedBlockTypes, t
   }
 
   try {
-    const result = await agentRequest('/agent/grade', {
+    const result = await postAgent('/agent/grade', {
       child_id: childId,
       lesson_id: lessonId,
       workspace_xml: workspaceXml,
@@ -201,7 +201,7 @@ export async function requestCurriculum({ childId: customChildId, completedLesso
 
   if (childId && backendOk) {
     try {
-      const res = await agentRequest('/agent/curriculum', {
+      const res = await postAgent('/agent/curriculum', {
         child_id: childId,
         completed_lessons: completedLessons || [],
         weak_block_types: weakBlockTypes || [],

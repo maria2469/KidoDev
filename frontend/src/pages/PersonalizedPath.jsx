@@ -17,41 +17,68 @@ export default function PersonalizedPath() {
 
     async function loadPath() {
         setLoading(true);
+        setError(null);
         try {
             const kidChildId = localStorage.getItem('kido_child_id');
-            const { data: { user } } = await supabase.auth.getUser();
-            const userId = kidChildId || user?.id;
-
-            if (!userId) {
-                setError('Please log in to view your learning path.');
-                setLoading(false);
-                return;
-            }
+            const { data: authData } = await supabase.auth.getUser().catch(() => ({ data: { user: null } }));
+            const user = authData?.user;
+            const userId = kidChildId || user?.id || 'demo_student';
 
             // Initialize agent session
             initSession(userId);
 
-            // Load student profile + completed lessons
-            const [profileRes, completedRes] = await Promise.all([
-                supabase.from('child_profiles').select('total_xp, level, badges').eq('id', userId).maybeSingle(),
-                supabase.from('lesson_completions').select('lesson_id, score, badge').eq(kidChildId ? 'child_id' : 'user_id', userId),
-            ]);
+            const isUUID = (str) => typeof str === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 
-            const p = profileRes.data || { total_xp: 0, level: 'Bronze', badges: [] };
-            setProfile(p);
+            let profileData = { total_xp: 150, level: 'Bronze', badges: [] };
+            let completedData = [];
 
-            const completed = completedRes.data || [];
+            if (isUUID(userId)) {
+                try {
+                    const [pRes, cRes] = await Promise.all([
+                        supabase.from('child_profiles').select('total_xp, level, badges').eq('id', userId).maybeSingle(),
+                        supabase.from('lesson_completions').select('lesson_id, score, badge').eq(kidChildId ? 'child_id' : 'user_id', userId),
+                    ]);
+                    if (pRes?.data) profileData = pRes.data;
+                    if (cRes?.data) completedData = cRes.data;
+                } catch (dbErr) {
+                    console.warn('[PersonalizedPath] DB query warning:', dbErr);
+                }
+            }
 
-            // Request personalized curriculum from the agent
-            const curriculum = await requestCurriculum({
-                completedLessons: completed,
+            setProfile(profileData);
+
+            // Request personalized curriculum from the agent (with a 4-second timeout promise race)
+            const curriculumPromise = requestCurriculum({
+                completedLessons: completedData,
                 weakBlockTypes: [],
                 strongBlockTypes: [],
-                level: p.level,
-                totalXp: p.total_xp,
+                level: profileData.level,
+                totalXp: profileData.total_xp,
             });
 
-            setCurriculumData(curriculum);
+            const timeoutPromise = new Promise((resolve) =>
+                setTimeout(() => resolve(null), 4000)
+            );
+
+            const curriculum = await Promise.race([curriculumPromise, timeoutPromise]);
+
+            if (curriculum) {
+                setCurriculumData(curriculum);
+            } else {
+                // Fallback curriculum if agent request timed out
+                setCurriculumData({
+                    learning_path_summary: "Welcome to your personalized AI coding path! Complete visual block challenges in Magic Studio to earn XP and level badges.",
+                    weekly_goal: "Complete 2 new coding challenges this week.",
+                    next_challenge: "Try using loops and motion blocks in your next project.",
+                    strengths: ["Visual Block Assembly", "Creative Logic"],
+                    skill_gaps: ["Multi-Sprite Event Signal Broadcasting"],
+                    recommended_lessons: [
+                        { lesson_id: 'lesson_1', title: 'Sprite Movement Basics', reason: 'Master fundamental block navigation', priority: 'high' },
+                        { lesson_id: 'lesson_2', title: 'Loop & Repeat Magic', reason: 'Learn how to repeat actions automatically', priority: 'medium' },
+                        { lesson_id: 'lesson_3', title: 'Obstacle Dodge Challenge', reason: 'Practice collision detection and sensing', priority: 'high' }
+                    ]
+                });
+            }
         } catch (err) {
             console.error('[PersonalizedPath]', err);
             setError('Could not load your learning path. Please try again.');
@@ -59,6 +86,7 @@ export default function PersonalizedPath() {
             setLoading(false);
         }
     }
+
 
     const levelColors = {
         Bronze: { bg: 'linear-gradient(135deg, #cd7f32, #a0522d)', text: '#fff' },
