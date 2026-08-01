@@ -540,7 +540,7 @@ const AdminProjectManager = () => {
                                         {isGenerating ? <FaCogs className="apm-spin" /> : 'Generate'}
                                     </button>
                                 </div>
-                                <small className="text-muted mt-2 d-block">Powered by Qwen 2.5 on AMD GPU via FastAPI & ngrok. Write a prompt and it will auto-fill the entire form below.</small>
+                                <small className="text-muted mt-2 d-block">Powered by AI Agent. Write a prompt and it will auto-fill the entire form below.</small>
                             </div>
                         </div>
                     </div>

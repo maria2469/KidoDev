@@ -1,7 +1,7 @@
 // AgentHintPanel.jsx — Multi-turn AI Agent Panel for Magic Studio
 // Replaces the simple one-shot SittingCatHelpButton with a full conversational interface
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { requestHint } from '../../agents/AgentOrchestrator';
+import { requestHint, checkEngagement } from '../../agents/AgentOrchestrator';
 
 // ─── Cat SVG (reused from SittingCatHelpButton) ─────────────────────────────
 function CatSvg({ size = 36, isThinking = false }) {
@@ -117,6 +117,37 @@ export default function AgentHintPanel({
     };
 
     useEffect(() => { scrollToBottom(); }, [messages]);
+
+    // ─── Periodic Engagement Agent Observer ──────────────────────────────────
+    useEffect(() => {
+        if (!lessonId) return;
+
+        const checkInterval = setInterval(async () => {
+            try {
+                const res = await checkEngagement({ lessonId });
+                if (res && res.intervention_needed && res.message) {
+                    const agentMsg = {
+                        role: 'assistant',
+                        content: res.message,
+                        interventionType: res.intervention_type,
+                        animationTrigger: res.animation_trigger,
+                        isEngagementIntervention: true,
+                        ts: Date.now(),
+                    };
+
+                    setMessages(prev => {
+                        const lastMsg = prev[prev.length - 1];
+                        if (lastMsg && lastMsg.content === res.message) return prev;
+                        return [...prev, agentMsg];
+                    });
+                }
+            } catch (err) {
+                console.warn('[AgentHintPanel] Engagement observer warning:', err);
+            }
+        }, 20000); // Check every 20 seconds for disengagement signals
+
+        return () => clearInterval(checkInterval);
+    }, [lessonId]);
 
     const sendHintRequest = useCallback(async (userMessage = null) => {
         if (isThinking) return;
@@ -411,6 +442,22 @@ export default function AgentHintPanel({
                                             letterSpacing: '0.3px',
                                         }}>
                                             MEMORY: {msg.memoryNote}
+                                        </div>
+                                    )}
+                                    {/* Engagement Intervention Badge */}
+                                    {msg.isEngagementIntervention && (
+                                        <div style={{
+                                            background: '#EFF6FF',
+                                            border: '1px solid #BFDBFE',
+                                            borderRadius: 6,
+                                            padding: '3px 8px',
+                                            marginBottom: 6,
+                                            fontSize: 10,
+                                            fontWeight: 700,
+                                            color: '#1D4ED8',
+                                            letterSpacing: '0.3px',
+                                        }}>
+                                            ⚡ ENGAGEMENT AGENT: {msg.interventionType ? msg.interventionType.toUpperCase() : 'NUDGE'}
                                         </div>
                                     )}
                                     <p style={{

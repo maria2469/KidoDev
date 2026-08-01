@@ -5,6 +5,7 @@ import 'blockly/blocks';
 import { defineAllScratchBlocks, SCRATCH_TOOLBOX } from '../../data/scratchBlocks';
 import { BACKDROPS, getActiveBackdrop } from './constants';
 import { drawCat } from './catRenderer';
+import { recordBlockPlacedForEngagement } from '../../agents/memory/AgentMemoryStore';
 
 /* ───────────────────────────────────────────── */
 /* 🧠 AI Helper (SAFE / OPTIONAL)               */
@@ -90,6 +91,9 @@ export function useBlocklySetup({
 
                 if (wsRef.current) {
                     wsRef.current.addChangeListener((event) => {
+                        if (event.type === Blockly.Events.BLOCK_CREATE || event.type === Blockly.Events.BLOCK_MOVE) {
+                            recordBlockPlacedForEngagement();
+                        }
                         if (
                             isAgentSolvedRef?.current &&
                             tutorStateRef &&
