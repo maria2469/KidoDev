@@ -3,20 +3,22 @@
 
 **Project Name:** KidoDev — AI-Powered Learning Platform  
 **Target Track:** Track 2: Agentic AI (Development & Local Deployment of Private AI Agents)  
-**Infrastructure Host:** AMD Developer Cloud Instance (Linux + GPU Compute)  
-**Inference Engine:** Hybrid (Fireworks AI Cloud Inference + Local ROCm Acceleration on AMD GPU)  
+**Infrastructure Host:** AMD Developer Cloud GPU Host Instance  
+**Inference Engine:** Direct AMD GPU Local Inference (`DEVICE=rocm` via ROCm + PyTorch)  
 **Live Web Application:** [https://kidodevai.netlify.app](https://kidodevai.netlify.app)  
 **Backend Ngrok Gateway:** `https://khalilah-piteous-cortez.ngrok-free.dev`  
 
 ---
 
-## 1. Application Scenarios
+## 1. Executive Overview & Application Scenarios
 
-KidoDev addresses the critical gap in primary computer science education (K-12, ages 6-14) by replacing static tutorials with an **intelligent agentic platform**.
+**KidoDev** is an AI-powered educational platform that teaches children Scratch programming through an intelligent AI tutor. The entire AI reasoning pipeline runs directly on an AMD GPU hosted in the **AMD Developer Cloud**, eliminating dependency on external inference providers.
+
+The AMD GPU is responsible for serving the FastAPI backend, executing the AI models using **ROCm**, benchmarking inference performance, and generating personalized tutoring responses in real time.
 
 ### Core Educational Scenarios:
 1. **Interactive Socratic Tutoring (Magic Studio Editor):**
-   - Children build Scratch programs (`s_when_flag`, `s_move`, `s_repeat`, `s_if_else`).
+   - Children construct Scratch programs (`s_when_flag`, `s_move`, `s_repeat`, `s_if_else`).
    - The **Tutor Agent** uses multi-turn reasoning and XML AST diffing to guide students through Socratic hints without revealing direct answers.
 
 2. **Autonomous Visual Demonstrations ("Cat Co-Pilot"):**
@@ -33,167 +35,174 @@ KidoDev addresses the critical gap in primary computer science education (K-12, 
 
 ---
 
-## 2. Agent Architecture Diagrams
+## 2. High-Level & Deployment Architecture Diagrams
 
-### 2.1 Current State Architecture Diagram
+### High-Level Architectural Flow
+
+```text
+                         Student
+                            │
+                            ▼
+                 React Frontend (Vite)
+                            │
+                    HTTPS / WebSocket
+                            │
+                            ▼
+                    ngrok Secure Tunnel
+                            │
+                            ▼
+                AMD Developer Cloud GPU
+      ┌──────────────────────────────────────────┐
+      │              FastAPI Backend             │
+      │                                          │
+      │      AI Agent Orchestrator               │
+      │              │                           │
+      │              ▼                           │
+      │  Tutor │ Curriculum │ Grader Agents      │
+      │              │                           │
+      │              ▼                           │
+      │       Prompt Construction                │
+      │              ▼                           │
+      │   Local LLM (Qwen / Gemma / Llama)       │
+      │              ▼                           │
+      │          ROCm Runtime                    │
+      │              ▼                           │
+      │            AMD GPU                       │
+      └──────────────────────────────────────────┘
+                      │
+                      ▼
+                Supabase Database
+         (Auth, Progress, Lessons, Projects)
+```
+
+### Complete System Mermaid Architecture Diagram
 
 ```mermaid
 flowchart TB
-    subgraph Browser ["Student Browser (Local Host / Netlify)"]
-        ReactUI["React 18 / Vite Frontend Client"]
-        AgentPanel["AI Hint Panel / Scratch Studio"]
-        ReactUI --> AgentPanel
+    subgraph Client ["Student Client"]
+        Student["Student Browser"]
+        ReactFrontend["React Frontend (Vite)\nhttp://localhost:5173"]
+        Student --> ReactFrontend
     end
 
-    subgraph SupabaseLayer ["Supabase Cloud"]
-        AuthDB["Supabase Auth & Database\n(Users, Lessons, XP, Telemetry)"]
-        ReactUI <-->|Direct DB & Auth Ops| AuthDB
+    subgraph Tunnel ["Secure Gateway"]
+        NgrokTunnel["ngrok Secure Tunnel\n(https://khalilah-piteous-cortez.ngrok-free.dev)"]
+        ReactFrontend <-->|HTTPS / WSS| NgrokTunnel
     end
 
-    subgraph Tunnel ["Secure Transport"]
-        NgrokGateway["ngrok Tunnel Gateway\n(https://khalilah-piteous-cortez.ngrok-free.dev)"]
-        ReactUI <-->|HTTPS API Requests| NgrokGateway
-    end
+    subgraph AMDCloud ["AMD Developer Cloud GPU Host"]
+        FastAPI["FastAPI Backend Server\nuvicorn main:app (Port 8000)"]
+        NgrokTunnel <-->|Reverse Proxy| FastAPI
 
-    subgraph AMDCloud ["AMD Developer Cloud Instance"]
-        FastAPIServer["FastAPI Backend (Port 8000)\nuvicorn main:app"]
-        NgrokGateway <-->|Reverse Proxy| FastAPIServer
-
-        subgraph Agents ["Multi-Agent System"]
-            TutorAgent["1. Tutor Agent (Socratic Hints)"]
-            GraderAgent["2. Grader Agent (4-D Evaluation)"]
-            CurriculumAgent["3. Curriculum Agent (Path & Homework)"]
-            BenchmarkAgent["4. Benchmark Agent (GPU Performance)"]
+        subgraph AgentOrchestrator ["AI Agent Orchestrator"]
+            TutorAgent["Tutor Agent\n(Socratic Hints & AST Diffing)"]
+            CurriculumAgent["Curriculum Agent\n(Path & Targeted Homework)"]
+            GraderAgent["Grader Agent\n(4-D Project Scorer)"]
+            BenchmarkAgent["Benchmark Agent\n(Latency, VRAM & Speed Metrics)"]
         end
 
-        FastAPIServer --> TutorAgent
-        FastAPIServer --> GraderAgent
-        FastAPIServer --> CurriculumAgent
-        FastAPIServer --> BenchmarkAgent
+        FastAPI --> TutorAgent
+        FastAPI --> CurriculumAgent
+        FastAPI --> GraderAgent
+        FastAPI --> BenchmarkAgent
+
+        subgraph PromptLayer ["Prompt Construction Layer"]
+            PromptBuilder["Context-Aware Prompt Engineering"]
+            TutorAgent --> PromptBuilder
+            CurriculumAgent --> PromptBuilder
+            GraderAgent --> PromptBuilder
+        end
+
+        subgraph InferenceEngine ["AMD Hardware Inference Engine"]
+            LocalLLM["Local LLM\n(Qwen 2.5 / Gemma / Llama)"]
+            ROCmStack["ROCm Runtime Acceleration"]
+            AMDGPUHardware["AMD Radeon / Instinct GPU"]
+
+            PromptBuilder --> LocalLLM
+            LocalLLM --> ROCmStack
+            ROCmStack --> AMDGPUHardware
+        end
     end
 
-    subgraph InferencePipeline ["Hybrid AI Inference Engine"]
-        FireworksAPI["Fireworks AI API\n(Primary Cloud LLM Inference)"]
-        LocalAMDModel["Local Qwen / Llama Model\n(ROCm on AMD GPU)"]
-        FallbackEngine["KidoBot Smart Rule Engine\n(Offline Fallback)"]
-
-        TutorAgent -->|Default Priority| FireworksAPI
-        TutorAgent -.->|GPU Benchmarking / ROCm| LocalAMDModel
-        TutorAgent -.->|Timeout / Fallback| FallbackEngine
+    subgraph Database ["Supabase Cloud"]
+        SupabaseDB["Supabase Database & Auth\n(Users, Lessons, Progress, XP, Projects, Telemetry)"]
+        ReactFrontend <-->|Direct Auth & DB Ops| SupabaseDB
+        FastAPI <-->|Server-Side Persistence & Benchmark Logs| SupabaseDB
     end
-
-    FastAPIServer <-->|Server-Side Ops| AuthDB
 ```
 
 <div align="center">
-  <img src="docs/images/architecture_current_state.png" alt="KidoDev Current State Architecture Diagram" width="850" />
-  <p><em>Figure 1: KidoDev Current Architecture — React Frontend, Supabase, FastAPI on AMD Developer Cloud, and Hybrid AI Inference Pipeline</em></p>
+  <img src="docs/images/amd_direct_inference_architecture.png" alt="KidoDev Direct AMD Inference Architecture Diagram" width="850" />
+  <p><em>Figure 1: KidoDev + AMD Developer Cloud Architecture — Direct Local AMD GPU Inference via ROCm Stack</em></p>
 </div>
 
 ---
 
-### 2.2 Target State Architecture Diagram (Full Local AMD GPU Inference)
+## 3. System Components & AI Agents
 
-```mermaid
-flowchart TB
-    subgraph Client ["Student Browser"]
-        Frontend["React Frontend (MagicStudio / AI Hint Panel)"]
-    end
+### 1. React Frontend
+- Runs on developer machine (`http://localhost:5173`).
+- Responsibilities: Student login, Scratch editor (`MagicStudio`), lesson interface, AI Hint Panel, parent/admin dashboards, progress visualization. Performs no AI inference.
 
-    subgraph Transport ["Network Tunnel"]
-        Ngrok["ngrok Secure Tunnel"]
-        Frontend <--> Ngrok
-    end
+### 2. ngrok Secure Tunnel
+- Exposes backend running inside the AMD cloud environment via HTTPS (`https://khalilah-piteous-cortez.ngrok-free.dev`).
 
-    subgraph AMDCloudGPU ["AMD Developer Cloud Host"]
-        Backend["FastAPI Backend (Agent Orchestrator)"]
-        Ngrok <--> Backend
+### 3. AMD Developer Cloud
+- Hosts the backend services on an AMD GPU instance with ROCm software stack and GPU drivers (`uvicorn main:app --host 0.0.0.0 --port 8000`).
 
-        subgraph AMDInference ["AMD GPU Local Inference Gateway"]
-            ROCmDriver["ROCm / HIP Driver Layer"]
-            PyTorchvLLM["PyTorch / vLLM Server"]
-            LocalLLM["Local Qwen 2.5 / Gemma / Llama Model"]
-            
-            Backend --> PyTorchvLLM
-            PyTorchvLLM --> ROCmDriver
-            ROCmDriver --> LocalLLM
-        end
-    end
+### 4. FastAPI Backend
+- Intelligence layer managing agent orchestration, prompt building, calling local LLMs, returning JSON, and benchmarking GPU metrics.
 
-    subgraph DB ["Supabase Database"]
-        SupaDB["User Auth, Progress, XP & Projects"]
-        Frontend <--> SupaDB
-        Backend <--> SupaDB
-    end
+### 5. Specialized AI Agent System
+- **Tutor Agent:** Explains concepts, provides Socratic hints, answers questions, guides debugging.
+- **Curriculum Agent:** Selects lessons, adjusts difficulty, generates paths and targeted homework.
+- **Grader Agent:** Evaluates project submissions across 4 dimensions (*Correctness*, *Efficiency*, *Independence*, *Creativity*).
+- **Benchmark Agent:** Tracks GPU utilization, inference latency, token generation speed, and VRAM memory usage.
+
+### 6. Local AI Model
+- Executes directly on the AMD GPU (Qwen 2.5, Gemma, Llama). Stack: `Transformers` → `ROCm` → `AMD GPU`.
+
+### 7. Supabase
+- Stores authentication, profiles, lessons, progress, XP, achievements, Scratch project XMLs, and analytics.
+
+---
+
+## 4. AI Request & Benchmark Pipeline
+
+### AI Request Flow
+```text
+Student Clicks "Need Hint" → React Frontend collects context → Send to FastAPI via ngrok → Agent Orchestrator → Tutor Agent → Prompt Builder → Local LLM → ROCm Runtime → AMD GPU → Generate response → FastAPI → JSON Response → React Frontend → Display Hint → Save Progress to Supabase
 ```
 
-<div align="center">
-  <img src="docs/images/architecture_target_state.png" alt="KidoDev Target State Architecture Diagram" width="850" />
-  <p><em>Figure 2: KidoDev Target Architecture — Full Local LLM Inference on AMD Radeon / Cloud GPU via ROCm</em></p>
-</div>
+### Benchmark Pipeline
+```text
+Prompt → AMD GPU Model Execution → Collect Metrics (Latency, GPU Memory, GPU Utilization, Inference Time, Token Speed) → Return Metrics → Admin Benchmark Dashboard
+```
 
 ---
 
-## 3. Core Capabilities Introduction
+## 5. Environment Variables & Deployment Setup
 
-### 🧠 1. Socratic AI Tutor Agent (`KidoBot`)
-- Multi-turn ReAct loop performing workspace XML AST gap diffing against lesson objectives.
-- Delivers concept explanations without spoiling answer block names.
+### **Frontend (`frontend/.env`)**
+```env
+VITE_SUPABASE_URL=https://cvdbnxeqbirrdyfwrgso.supabase.co
+VITE_SUPABASE_ANON_KEY=sb_publishable_oh-OLBt29AfkWdhg5zIOrg_nf1cva3z
+VITE_AGENT_BACKEND_URL=https://khalilah-piteous-cortez.ngrok-free.dev
+VITE_BACKEND_WS_URL=wss://khalilah-piteous-cortez.ngrok-free.dev
+```
 
-### 🐱 2. Visual Sprite Guide Agent ("Cat Co-Pilot")
-- Autonomous drag-and-drop demonstrations calculating SVG screen matrix transformations (`getScreenCTM()`).
-
-### 👁️ 3. Proactive Engagement Agent (Workspace Observer)
-- Monitors idle duration, click velocity, and session length, issuing proactive disengagement nudges (`encourage`, `challenge`, `break`).
-
-### 🏆 4. Multi-Dimensional Grader Agent
-- Automated evaluation across 4 dimensions: *Correctness*, *Code Efficiency*, *Independence*, and *Creativity*.
-
-### 📚 5. Curriculum Planner Agent & Homework Generator
-- Analyzes weak block categories (`s_repeat`, `s_if`, `s_touching`) and generates targeted homework practice missions.
-
-### ⏱️ 6. Benchmark Agent
-- Measures latency (**ms**), VRAM memory usage, GPU utilization, and token throughput (**tokens/sec**) on AMD hardware (`/benchmark/run`, `/benchmark/history`).
-
----
-
-## 4. Model Introduction & Local Deployment Plan
-
-- **Current Models:** Fireworks API hosted Qwen 2.5 Coder 32B / Gemma models for production inference, alongside local Qwen 2.5 1.5B ROCm benchmarking on AMD GPU hardware.
-- **Local Deployment Strategy:** The FastAPI backend runs inside the AMD Developer Cloud instance (`uvicorn main:app --host 0.0.0.0 --port 8000`), connected to web clients via ngrok gateway. Model inference is executed locally using PyTorch, ROCm, Transformers, vLLM, or Ollama.
+### **Backend (`backend/.env`)**
+```env
+SUPABASE_URL=https://cvdbnxeqbirrdyfwrgso.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=sb_publishable_oh-OLBt29AfkWdhg5zIOrg_nf1cva3z
+MODEL_NAME=qwen2.5-1.5b
+DEVICE=rocm
+PORT=8000
+ALLOWED_ORIGINS=http://localhost:5173,https://kidodevai.netlify.app
+```
 
 ---
 
-## 5. Inference Speed Optimization on AMD Radeon GPU
+## 6. Why AMD Developer Cloud?
 
-- **ROCm & HIP Runtime Acceleration:** Low-level C++ kernel acceleration using HIP on AMD compute hardware.
-- **Quantization:** FP16/INT8 quantized model execution reduces VRAM usage to **~2.8 GB**.
-- **Asynchronous Execution:** Non-blocking async Python `httpx` execution for multi-turn agent calls.
-- **Telemetry Benchmarking:** Dedicated Admin panel tracking token generation speed (**45-62 tokens/sec**) and latency (**320-580ms**).
-
----
-
-## 6. Current State vs. Target State Comparison
-
-| Component | Current State | Target State |
-|---|---|---|
-| **Frontend** | React (Local / Netlify) | React (Local / Netlify) |
-| **Backend** | FastAPI on AMD Cloud Host | FastAPI on AMD Cloud Host |
-| **Database** | Supabase | Supabase |
-| **Authentication** | Supabase Auth | Supabase Auth |
-| **AI Inference** | Fireworks AI (Cloud-hosted) | Local model on AMD GPU via ROCm |
-| **Public Access** | ngrok tunnel gateway | ngrok tunnel or production domain |
-| **GPU Usage** | Backend hosting & GPU benchmarking | Backend hosting & full local LLM inference |
-
----
-
-## 7. Verified Agent API Endpoint Contracts
-
-| Endpoint | Method | Purpose | Verified Payload Response |
-|---|---|---|---|
-| `/health` | `GET` | Health check | `{"status": "healthy"}` |
-| `/agent/tutor` | `POST` | Tutor hint | `hint_message`, `next_block_type`, `reasoning_trace`, `tools_used`, `latency_ms` |
-| `/agent/grade` | `POST` | 4-D grading | `score`, `badge`, `feedback`, `correctness_score`, `efficiency_score`, `independence_score`, `creativity_score` |
-| `/agent/curriculum` | `POST` | Path + Homework | `learning_path_summary`, `weekly_goal`, `next_challenge`, `recommended_lessons`, `homework_assignments` |
-| `/agent/engage` | `POST` | Disengagement | `intervention_needed`, `intervention_type`, `message`, `animation_trigger` |
-| `/benchmark/run` | `POST` | GPU Benchmark | `response_text`, `tokens_generated`, `latency_ms`, `tokens_per_second`, `gpu_type` |
+AMD Developer Cloud enables KidoDev to function as a complete AI learning platform without external inference APIs, demonstrating high-performance AMD GPUs, ROCm acceleration, real-world latency benchmarking, and end-to-end local agent execution.
