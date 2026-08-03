@@ -89,14 +89,30 @@ async def health():
 async def startup_banner():
     provider = qwen_client.get_active_provider()
     healthy = await qwen_client.check_health()
+    
+    torch_status = "INSTALLED (AMD ROCm)"
+    try:
+        import torch
+        if not torch.cuda.is_available():
+            torch_status = "INSTALLED (CPU only)"
+    except ImportError:
+        torch_status = "NOT INSTALLED (Missing in active venv!)"
+
     print()
-    print("=" * 60)
+    print("=" * 65)
     print("  Kido Dev — Agentic AI Backend v3.0.0")
     print(f"  Deploy Mode  : {DEPLOY_MODE}")
     print(f"  Inference    : {provider}")
+    print(f"  PyTorch GPU  : {torch_status}")
     print(f"  Health       : {'READY' if healthy else 'NOT AVAILABLE (fallback active)'}")
     print(f"  Docs         : http://localhost:{os.getenv('PORT', 8000)}/docs")
-    print("=" * 60)
+
+    if "NOT INSTALLED" in torch_status:
+        print()
+        print("  ⚠️ WARNING: You are running Uvicorn inside an environment without PyTorch!")
+        print("  👉 FIX: Run: source /workspace/workspace/KidoDev/llm-env/bin/activate")
+
+    print("=" * 65)
     print()
 
 

@@ -67,7 +67,14 @@ def _get_local_pipeline():
             return tuple_obj
 
     except ImportError as e:
-        print(f"[QwenClient] PyTorch or Transformers not installed in current Python env: {e}")
+        print("\n" + "=" * 70)
+        print("  ❌ [QwenClient CRITICAL ERROR] PyTorch ('torch') or 'transformers' is NOT installed in this Python environment!")
+        print(f"  Error details: {e}")
+        print("  👉 FIX: You must activate the 'llm-env' virtual environment before starting Uvicorn:")
+        print("     1. deactivate")
+        print("     2. source /workspace/workspace/KidoDev/llm-env/bin/activate")
+        print("     3. cd /workspace/workspace/KidoDev/backend && uvicorn main:app --host 0.0.0.0 --port 8000")
+        print("=" * 70 + "\n")
         return None
     except Exception as e:
         print(f"[QwenClient] Exception during local model load: {e}")
