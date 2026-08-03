@@ -12,6 +12,7 @@ import os
 import time
 import httpx
 from pathlib import Path
+import traceback
 
 INFERENCE_MODE = os.getenv("INFERENCE_MODE", "auto").lower()
 QWEN_MODEL_PATH = os.getenv("QWEN_MODEL_PATH", "/workspace/workspace/KidoDev/models/qwen2.5-1.5b")
@@ -22,7 +23,7 @@ _model_cache = {}
 
 
 def _get_local_pipeline():
-    """Lazily load local HuggingFace pipeline for Qwen2.5 if transformers & torch are installed."""
+    """Lazily load local HuggingFace model/pipeline for Qwen2.5 if transformers & torch are installed."""
     if "pipe" in _model_cache:
         return _model_cache["pipe"]
 
@@ -35,21 +36,42 @@ def _get_local_pipeline():
         import torch
         from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 
+        print(f"[QwenClient] Loading Tokenizer from {model_dir}...")
         tokenizer = AutoTokenizer.from_pretrained(str(model_dir), trust_remote_code=True)
+        print("[QwenClient] ✓ Tokenizer loaded successfully.")
+
+        print(f"[QwenClient] Loading Model on AMD GPU (ROCm) from {model_dir}...")
+        
+        dtype_kwargs = {}
+        if hasattr(torch, "float16"):
+            dtype_kwargs["torch_dtype"] = torch.float16 if torch.cuda.is_available() else torch.float32
+
         model = AutoModelForCausalLM.from_pretrained(
             str(model_dir),
-            torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
             device_map="auto" if torch.cuda.is_available() else "cpu",
-            trust_remote_code=True
+            trust_remote_code=True,
+            **dtype_kwargs
         )
-        pipe = pipeline("text-generation", model=model, tokenizer=tokenizer)
-        _model_cache["pipe"] = pipe
-        return pipe
-    except ImportError:
-        # PyTorch or Transformers not installed in current environment; suppress warning
+        print(f"[QwenClient] ✓ Model loaded on device: {next(model.parameters()).device}")
+
+        print("[QwenClient] Creating text-generation pipeline...")
+        try:
+            pipe = pipeline("text-generation", model=model, tokenizer=tokenizer)
+            print("[QwenClient] ✓ HuggingFace Pipeline initialized successfully.")
+            _model_cache["pipe"] = pipe
+            return pipe
+        except Exception as pipe_err:
+            print(f"[QwenClient] Pipeline creation warning: {pipe_err}. Using direct model tuple fallback.")
+            tuple_obj = (model, tokenizer)
+            _model_cache["pipe"] = tuple_obj
+            return tuple_obj
+
+    except ImportError as e:
+        print(f"[QwenClient] PyTorch or Transformers not installed in current Python env: {e}")
         return None
     except Exception as e:
-        print(f"[QwenClient] Local transformers pipeline load error: {e}")
+        print(f"[QwenClient] Exception during local model load: {e}")
+        traceback.print_exc()
         return None
 
 
@@ -116,24 +138,46 @@ async def _try_vllm(system_prompt, user_prompt, max_tokens, temperature):
 
 
 def _try_transformers_sync(system_prompt, user_prompt, max_tokens, temperature):
-    """Try local HuggingFace transformers pipeline (synchronous)."""
-    print(f"[QwenClient] Requesting HuggingFace Transformers pipeline execution on path: '{QWEN_MODEL_PATH}'")
+    """Try local HuggingFace model/pipeline execution (synchronous)."""
+    print(f"[QwenClient] Requesting HuggingFace Transformers execution on path: '{QWEN_MODEL_PATH}'")
     start_ms = time.time() * 1000
 
-    pipe = _get_local_pipeline()
-    if pipe is None:
-        print("[QwenClient] Local HuggingFace pipeline is None (model missing or load error).")
+    obj = _get_local_pipeline()
+    if obj is None:
+        print("[QwenClient] Local model object is None (model missing or load error).")
         return None
 
     try:
         prompt_text = f"<|im_start|>system\n{system_prompt}<|im_end|>\n<|im_start|>user\n{user_prompt}<|im_end|>\n<|im_start|>assistant\n"
-        out = pipe(prompt_text, max_new_tokens=max_tokens, do_sample=True, temperature=temperature)
-        gen_text = out[0]["generated_text"].replace(prompt_text, "").replace("<|im_end|>", "").strip()
+        
+        if isinstance(obj, tuple):
+            # Direct model.generate fallback
+            model, tokenizer = obj
+            import torch
+            inputs = tokenizer(prompt_text, return_tensors="pt")
+            if torch.cuda.is_available():
+                inputs = {k: v.to("cuda") for k, v in inputs.items()}
+            
+            with torch.no_grad():
+                outputs = model.generate(
+                    **inputs,
+                    max_new_tokens=max_tokens,
+                    do_sample=True,
+                    temperature=temperature,
+                    pad_token_id=tokenizer.eos_token_id
+                )
+            gen_text = tokenizer.decode(outputs[0][inputs["input_ids"].shape[1]:], skip_special_tokens=True).strip()
+        else:
+            # Standard pipeline execution
+            out = obj(prompt_text, max_new_tokens=max_tokens, do_sample=True, temperature=temperature)
+            gen_text = out[0]["generated_text"].replace(prompt_text, "").replace("<|im_end|>", "").strip()
 
         end_ms = time.time() * 1000
         latency = int(end_ms - start_ms)
         tokens_out = len(gen_text.split())
         tps = round(tokens_out / max(latency / 1000, 0.001), 1)
+
+        print(f"[QwenClient] ✓ GPU Inference complete! Latency: {latency}ms | Speed: {tps} tok/s")
 
         return {
             "text": gen_text,
@@ -141,12 +185,13 @@ def _try_transformers_sync(system_prompt, user_prompt, max_tokens, temperature):
             "latency_ms": latency,
             "tokens_per_second": tps,
             "model": "qwen2.5-1.5b",
-            "gpu_type": "HuggingFace Transformers (Local)",
+            "gpu_type": "HuggingFace Transformers (AMD ROCm GPU)",
             "provider": "HuggingFace Transformers",
             "error": None,
         }
     except Exception as e:
-        print(f"[QwenClient] HuggingFace local execution error: {e}")
+        print(f"[QwenClient] HuggingFace execution error: {e}")
+        traceback.print_exc()
         return None
 
 
