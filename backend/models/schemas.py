@@ -33,27 +33,7 @@ class TutorResponse(BaseModel):
     agent_memory_note: Optional[str] = None          # e.g. "I remember you struggled with loops"
 
 
-# ─── Grader Agent ─────────────────────────────────────────────────────────────
 
-class GradeRequest(BaseModel):
-    child_id: Optional[str] = None
-    lesson_id: str
-    workspace_xml: str
-    helped_block_types: List[str] = []
-    time_seconds: int = 0
-
-
-class GradeResponse(BaseModel):
-    score: int
-    badge: str
-    feedback: str
-    correctness_score: int
-    efficiency_score: int
-    independence_score: int
-    creativity_score: int
-    reasoning: str
-    tokens_generated: int = 0
-    latency_ms: int = 0
 
 
 # ─── Curriculum Agent ─────────────────────────────────────────────────────────
@@ -87,40 +67,30 @@ class CurriculumResponse(BaseModel):
     reasoning_trace: List[str] = []
 
 
-# ─── Engagement Agent ─────────────────────────────────────────────────────────
+# ─── Business Insights Agent ──────────────────────────────────────────────────
 
-class EngagementRequest(BaseModel):
-    child_id: str
-    session_id: str
-    lesson_id: str
-    idle_seconds: int = 0
-    hint_count: int = 0
-    block_placements_last_minute: int = 0
-    session_duration_seconds: int = 0
-
-
-class EngagementResponse(BaseModel):
-    intervention_needed: bool
-    intervention_type: Optional[str] = None   # "encourage" | "challenge" | "break" | None
-    message: Optional[str] = None
-    animation_trigger: Optional[str] = None   # "wave" | "dance" | "think"
+class BusinessInsightsRequest(BaseModel):
+    total_students: int = 0
+    active_subscriptions: int = 0
+    total_revenue: float = 0.0
+    average_score: float = 0.0
+    total_completed_missions: int = 0
+    school_count: int = 0
 
 
-# ─── Benchmark ────────────────────────────────────────────────────────────────
+class BusinessInsightsResponse(BaseModel):
+    executive_summary: str
+    health_score: int
+    financial_kpis: Dict[str, Any] = {}
+    growth_recommendations: List[str] = []
+    platform_improvements: List[str] = []
+    monetization_opportunities: List[str] = []
+    risk_analysis: List[str] = []
+    projected_mrr_growth: str
+    reasoning_trace: List[str] = []
 
-class BenchmarkRequest(BaseModel):
-    prompt: str
-    use_local: bool = True   # Qwen2.5 / AMD ROCm GPU
 
 
-class BenchmarkResponse(BaseModel):
-    response_text: str
-    tokens_generated: int
-    latency_ms: int
-    tokens_per_second: float
-    gpu_type: str
-    model_name: str
-    provider: str   # "Local Qwen2.5 (AMD ROCm)"
 
 
 # ─── Agent Log ────────────────────────────────────────────────────────────────

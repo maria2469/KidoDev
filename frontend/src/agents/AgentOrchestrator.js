@@ -149,45 +149,7 @@ async function _fallbackHint(workspaceBlocks, objective, userMessage = null) {
   }
 }
 
-// ─── GraderAgent ──────────────────────────────────────────────────────────────
-/**
- * Request multi-dimensional grading from GraderAgent.
- * Falls back to standard grading if backend is down.
- */
-export async function requestGrade({ lessonId, workspaceXml, helpedBlockTypes, timeSeconds }) {
-  const childId = getChildId();
-  const backendOk = await checkBackend();
 
-  if (!childId || !backendOk) {
-    return null; // caller uses existing getGrade() fallback
-  }
-
-  try {
-    const result = await postAgent('/agent/grade', {
-      child_id: childId,
-      lesson_id: lessonId,
-      workspace_xml: workspaceXml,
-      helped_block_types: helpedBlockTypes || [],
-      time_seconds: timeSeconds || 0,
-    });
-
-    return {
-      score: result.score,
-      badge: result.badge,
-      feedback: result.feedback,
-      correctnessScore: result.correctness_score,
-      efficiencyScore: result.efficiency_score,
-      independenceScore: result.independence_score,
-      creativityScore: result.creativity_score,
-      reasoning: result.reasoning,
-      tokensGenerated: result.tokens_generated,
-      latencyMs: result.latency_ms,
-    };
-  } catch (err) {
-    console.error('[AgentOrchestrator] GraderAgent error:', err);
-    return null;
-  }
-}
 
 const curriculumCache = new Map();
 
@@ -382,66 +344,33 @@ function _generateFallbackCurriculum({ completedLessons = [], level = 'Bronze', 
   };
 }
 
-// ─── EngagementAgent ──────────────────────────────────────────────────────────
-export async function checkEngagement({ lessonId }) {
-  const childId = getChildId();
-  const sessionId = getSessionId();
+// ─── BusinessInsightsAgent ───────────────────────────────────────────────────
+export async function requestBusinessInsights(metrics = {}) {
   const backendOk = await checkBackend();
-
-  if (!childId || !sessionId || !backendOk) return null;
-
-  const state = getSessionState();
+  if (!backendOk) return null;
 
   try {
-    const result = await postAgent('/agent/engage', {
-      child_id: childId,
-      session_id: sessionId,
-      lesson_id: lessonId,
-      idle_seconds: state.idleSeconds,
-      hint_count: state.hintCount,
-      block_placements_last_minute: state.blockPlacementsLastMinute,
-      session_duration_seconds: state.sessionDurationSeconds,
+    const result = await postAgent('/agent/business-insights', {
+      total_students: metrics.total_students || 0,
+      active_subscriptions: metrics.active_subscriptions || 0,
+      total_revenue: metrics.total_revenue || 0,
+      average_score: metrics.average_score || 0,
+      total_completed_missions: metrics.total_completed_missions || 0,
+      school_count: metrics.school_count || 0,
     });
     return result;
-  } catch {
+  } catch (err) {
+    console.warn('[AgentOrchestrator] BusinessInsightsAgent error:', err);
     return null;
   }
 }
 
-// ─── AMD Benchmark & Health ───────────────────────────────────────────────────
-export async function runBenchmark(prompt = '', useLocal = false) {
-  try {
-    const res = await fetch(`${BACKEND_URL}/benchmark/run`, {
-      method: 'POST',
-      headers: AGENT_HEADERS,
-      body: JSON.stringify({ prompt, use_local: useLocal }),
-      signal: AbortSignal.timeout(60_000),
-    });
-    return res.ok ? await res.json() : null;
-  } catch {
-    return null;
-  }
-}
-
-export async function fetchBenchmarkHistory() {
-  try {
-    const headers = {};
-    if (isNgrok) headers['ngrok-skip-browser-warning'] = 'true';
-    const res = await fetch(`${BACKEND_URL}/benchmark/history?limit=30`, {
-      headers,
-      signal: AbortSignal.timeout(5000),
-    });
-    return res.ok ? await res.json() : { logs: [] };
-  } catch {
-    return { logs: [] };
-  }
-}
-
+// ─── Backend Health ────────────────────────────────────────────────────────────
 export async function fetchBackendHealth() {
   try {
     const headers = {};
     if (isNgrok) headers['ngrok-skip-browser-warning'] = 'true';
-    const res = await fetch(`${BACKEND_URL}/benchmark/health`, {
+    const res = await fetch(`${BACKEND_URL}/health`, {
       headers,
       signal: AbortSignal.timeout(4000),
     });

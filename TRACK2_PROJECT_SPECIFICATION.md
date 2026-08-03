@@ -15,21 +15,15 @@
 KidoDev addresses the critical gap in primary computer science education (K-12, ages 6-14) by replacing static tutorials with a **private, self-hosted multi-agent platform**.
 
 ### Core Educational Scenarios:
-1. **Interactive Socratic Tutoring (Magic Studio Editor):**
+1. **Interactive Socratic & Visual Tutoring (Magic Studio Editor):**
    - Children construct Scratch programs using visual blocks (`s_when_flag`, `s_move`, `s_repeat`, `s_if_else`).
-   - The **Tutor Agent** uses multi-turn reasoning and XML AST diffing to guide students through Socratic hints without revealing direct answers.
+   - The unified **Socratic Visual Tutor Agent** uses multi-turn ReAct reasoning and XML AST diffing to guide students through contextual hints, while autonomously demonstrating block placements via screen matrix coordinate mapping (`getScreenCTM()`).
 
-2. **Autonomous Visual Block Demonstrations ("Cat Co-Pilot"):**
-   - Visual guidance where an animated sprite physically drags blocks from the flyout toolbox menu and drops them onto the workspace using screen matrix coordinate mapping (`getScreenCTM()`).
-
-3. **Proactive Workspace Observer:**
-   - Real-time monitoring of user interactions (idle seconds, click velocity, hint reliance) triggers disengagement nudges (`encourage`, `challenge`, `break`).
-
-4. **Multi-Dimensional Project Evaluation:**
-   - Automated 4-D scoring assessing student code across *Correctness*, *Code Efficiency*, *Independence*, and *Creativity*.
-
-5. **Personalized Learning Pathways & Targeted Homework:**
+2. **Personalized Learning Pathways & Targeted Homework:**
    - Long-term memory tracking of student block weaknesses (`helped_block_types`) generates individualized learning roadmaps and targeted homework missions for practice at home or in class.
+
+3. **AI Business Intelligence & Ecosystem Growth (Admin):**
+   - Strategic growth and revenue optimization recommendations delivered by `BusinessInsightsAgent`.
 
 ---
 
@@ -53,22 +47,20 @@ flowchart TB
         NgrokTunnel <-->|Reverse Proxy| FastAPI
 
         subgraph AgentOrchestrator ["AI Agent Orchestrator"]
-            TutorAgent["Tutor Agent\n(Socratic Hints & AST Diffing)"]
+            TutorAgent["Socratic Visual Tutor Agent\n(Hints, AST Diffing & Visual Co-Pilot)"]
             CurriculumAgent["Curriculum Agent\n(Path & Targeted Homework)"]
-            GraderAgent["Grader Agent\n(4-D Project Scorer)"]
-            BenchmarkAgent["Benchmark Agent\n(Latency, VRAM & Speed Metrics)"]
+            BusinessAgent["Business Insights Agent\n(Growth & Platform Optimization)"]
         end
 
         FastAPI --> TutorAgent
         FastAPI --> CurriculumAgent
-        FastAPI --> GraderAgent
-        FastAPI --> BenchmarkAgent
+        FastAPI --> BusinessAgent
 
         subgraph PromptLayer ["Prompt Construction Layer"]
             PromptBuilder["Context-Aware Prompt Engineering"]
             TutorAgent --> PromptBuilder
             CurriculumAgent --> PromptBuilder
-            GraderAgent --> PromptBuilder
+            BusinessAgent --> PromptBuilder
         end
 
         subgraph InferenceEngine ["AMD Hardware Inference Engine"]
@@ -85,7 +77,7 @@ flowchart TB
     subgraph Database ["Supabase Cloud"]
         SupabaseDB["Supabase Database & Auth\n(Users, Lessons, Progress, XP, Projects, Telemetry)"]
         ReactFrontend <-->|Direct Auth & DB Ops| SupabaseDB
-        FastAPI <-->|Server-Side Persistence & Benchmark Logs| SupabaseDB
+        FastAPI <-->|Server-Side Persistence| SupabaseDB
     end
 ```
 
@@ -98,24 +90,16 @@ flowchart TB
 
 ## 3. Introduction to Core Capabilities
 
-### 🧠 1. Socratic AI Tutor Agent (`KidoBot`)
-- **Multi-Turn ReAct Loop:** Performs XML AST gap diffing against lesson objectives.
-- **Socratic Guidance:** Explains concepts and UI locations without spoiling answer block names.
+### 🧠🐱 1. Socratic Visual Tutor Agent (`KidoBot` / `Cat Co-Pilot`)
+- **Multi-Turn ReAct Loop & AST Diffing:** Performs XML AST gap diffing against lesson objectives to analyze missing blocks and student errors.
+- **Socratic Text Guidance:** Delivers contextual hints and explanations without spoiling exact answer block names.
+- **Autonomous Visual Block Demonstrations:** Calculates SVG screen matrix transformations (`getScreenCTM()`) to drag blocks from toolbox flyouts and drop them directly onto the canvas.
 
-### 🐱 2. Visual Sprite Guide Agent ("Cat Co-Pilot")
-- **Autonomous Visual Placement:** Calculates SVG screen matrix transformations (`getScreenCTM()`) to drag blocks from toolbox flyouts and drop them on the canvas.
+### 📈 2. AI Business Insights & Growth Agent (`BusinessInsightsAgent`)
+- **Admin Growth Strategy:** Analyzes platform enrollment, revenue, parent conversion rates, and completion scores to deliver strategic business growth, retention, and monetization recommendations.
 
-### 👁️ 3. Proactive Engagement Agent (Workspace Observer)
-- **Real-Time Nudges:** Monitors idle duration, click velocity, and session length, delivering disengagement interventions (`encourage`, `challenge`, `break`).
-
-### 🏆 4. Multi-Dimensional Grader Agent
-- **Automated 4-D Scoring:** Evaluates completed projects across *Correctness (0-25)*, *Efficiency (0-25)*, *Independence (0-25)*, and *Creativity (0-25)*.
-
-### 📚 5. Curriculum Planner Agent & Homework Generator
+### 📚 3. Curriculum Planner Agent & Homework Generator
 - **Targeted Practice Missions:** Analyzes weak block categories (`s_repeat`, `s_if`, `s_touching`) and generates custom homework assignments with difficulty badges and target block checklists.
-
-### ⏱️ 6. Benchmark Agent
-- **Hardware Telemetry:** Measures system performance on AMD hardware, tracking GPU utilization, inference latency (**ms**), token generation speed (**tokens/sec**), and VRAM memory usage (`/benchmark/run`, `/benchmark/history`).
 
 ---
 

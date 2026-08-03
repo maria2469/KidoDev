@@ -209,7 +209,10 @@ const AdminOverview = () => {
                     {aiData && (
                         <div className="ao-ai-content">
                             <div className="ao-ai-header">
-                                <h3 className="ao-ai-title">AI Insights</h3>
+                                <h3 className="ao-ai-title">🤖 AI Business Insights & Growth Advisor</h3>
+                                <span style={{ background: '#EEF2FF', color: '#4F46E5', fontSize: '0.72rem', fontWeight: 800, padding: '3px 10px', borderRadius: 12, border: '1px solid #C7D2FE' }}>
+                                    Powered by BusinessInsightsAgent (Qwen 2.5 on AMD GPU)
+                                </span>
                             </div>
 
                             <p className="ao-ai-sum">{aiData?.executiveSummary || "Analyzing platform ecosystem to generate strategic foresight and business intelligence..."}</p>
@@ -219,7 +222,7 @@ const AdminOverview = () => {
                                 <div className="ao-ai-chart-box">
                                     <div className="ao-ai-chart-label">
                                         <span style={{ background: '#4F46E5', width: 10, height: 10, borderRadius: '50%' }}></span>
-                                        Projected Growth
+                                        Projected Revenue Growth
                                     </div>
                                     <ResponsiveContainer width="100%" height={150}>
                                         <AreaChart data={aiData?.predictedGrowth || []}>
@@ -233,7 +236,7 @@ const AdminOverview = () => {
                                 <div className="ao-ai-chart-box">
                                     <div className="ao-ai-chart-label">
                                         <span style={{ background: '#10B981', width: 10, height: 10, borderRadius: '50%' }}></span>
-                                        Student Engagement
+                                        Student Engagement Forecast
                                     </div>
                                     <ResponsiveContainer width="100%" height={150}>
                                         <AreaChart data={aiData?.engagementForecast || []}>
@@ -247,7 +250,7 @@ const AdminOverview = () => {
                                 <div className="ao-ai-chart-box">
                                     <div className="ao-ai-chart-label">
                                         <span style={{ background: '#F59E0B', width: 10, height: 10, borderRadius: '50%' }}></span>
-                                        Activity Segments
+                                        User Distribution
                                     </div>
                                     <ResponsiveContainer width="100%" height={150}>
                                         <PieChart>
@@ -275,18 +278,30 @@ const AdminOverview = () => {
 
                             <div className="ao-ai-cols">
                                 <div>
-                                    <h4 className="ao-ai-subh">Data-Driven Insights</h4>
+                                    <h4 className="ao-ai-subh">📈 Market Expansion &amp; User Acquisition</h4>
                                     <ul className="ao-ai-list">{(aiData?.keyInsights || []).map((k, i) => <li key={i}>{k}</li>)}</ul>
                                 </div>
                                 <div>
-                                    <h4 className="ao-ai-subh">Actionable Recommendations</h4>
+                                    <h4 className="ao-ai-subh">💡 Product-Led Growth (PLG) Enhancements</h4>
                                     <ul className="ao-ai-list">{(aiData?.recommendations || []).map((r, i) => <li key={i}>{r}</li>)}</ul>
                                 </div>
+                                {aiData?.monetizationOpportunities?.length > 0 && (
+                                    <div>
+                                        <h4 className="ao-ai-subh">💵 Monetization Boosters &amp; Pricing Levers</h4>
+                                        <ul className="ao-ai-list">{aiData.monetizationOpportunities.map((m, i) => <li key={i}>{m}</li>)}</ul>
+                                    </div>
+                                )}
+                                {aiData?.riskAnalysis?.length > 0 && (
+                                    <div>
+                                        <h4 className="ao-ai-subh">🛡️ Churn Risk &amp; Bottleneck Mitigations</h4>
+                                        <ul className="ao-ai-list">{aiData.riskAnalysis.map((rk, i) => <li key={i}>{rk}</li>)}</ul>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="ao-ai-foot">
-
-                                <div className="ao-ai-pill"><b>Growth Trend:</b> {aiData?.growthForecast || "Stable"}</div>
+                                <div className="ao-ai-pill"><b>Platform Health Score:</b> {aiData?.healthScore || 85}/100</div>
+                                <div className="ao-ai-pill"><b>Growth Forecast:</b> {aiData?.growthForecast || "Stable"}</div>
                                 <div className="ao-ai-pill"><b>Churn Risk:</b> {aiData?.churnPrediction || "Low"}</div>
                             </div>
                         </div>

@@ -136,10 +136,9 @@ flowchart TB
 - **Intelligence Layer Responsibilities:** Receiving frontend requests, managing AI agents, building context prompts, calling local LLMs, processing responses, returning structured JSON, and benchmarking GPU performance.
 
 ### 5. AI Agent Architecture
-- **Tutor Agent:** Explains Scratch programming concepts, provides hints, answers questions, and guides debugging.
+- **Socratic Visual Tutor Agent (`KidoBot` / `Cat Co-Pilot`):** Combines multi-turn ReAct reasoning and XML AST diffing for Socratic hints with autonomous visual sprite guidance, calculating SVG screen matrix transformations (`getScreenCTM()`) to demonstrate block placements directly on screen.
 - **Curriculum Agent:** Selects appropriate lessons, adjusts learning difficulty, tracks progression, and generates personalized learning paths with targeted homework missions.
-- **Grader Agent:** Evaluates completed Scratch projects, measures correctness, assigns scores, and provides constructive feedback.
-- **Benchmark Agent:** Measures system performance on AMD hardware, tracking GPU utilization, inference latency, token generation speed, memory usage, and throughput.
+- **Business Insights Agent:** Analyzes platform enrollment, revenue, parent conversion rates, and completion scores to deliver strategic business growth, retention, and monetization recommendations.
 
 ### 6. Local AI Model
 - **Execution Engine:** Language models (Qwen 2.5, Gemma, Llama) execute directly on the AMD GPU.

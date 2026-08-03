@@ -8,10 +8,9 @@ Deployment Modes (DEPLOY_MODE env var):
   cloud  — Deployed to cloud (Railway/Render/etc.)
 
 Agents:
-  TutorAgent         — Multi-turn, memory-aware coding hints
-  GraderAgent        — Multi-dimensional lesson grading
-  CurriculumPlanner  — Personalized learning path generation
-  EngagementAgent    — Session disengagement detection
+  TutorAgent            — Multi-turn, memory-aware coding hints
+  CurriculumPlanner     — Personalized learning path generation
+  BusinessInsightsAgent — Growth & platform optimization advisor
 
 Inference:
   Engine — Ollama (Qwen2.5), vLLM (AMD ROCm), or HuggingFace Transformers
@@ -23,7 +22,6 @@ load_dotenv()
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routers.agent_routes import router as agent_router
-from routers.benchmark_routes import router as benchmark_router
 from inference import qwen_client
 
 # ─── Deploy Mode ──────────────────────────────────────────────────────────────
@@ -56,7 +54,6 @@ app.add_middleware(
 # ─── Routers ──────────────────────────────────────────────────────────────────
 
 app.include_router(agent_router)
-app.include_router(benchmark_router)
 
 # ─── Root & Health ────────────────────────────────────────────────────────────
 
@@ -67,7 +64,7 @@ async def root():
         "version": "3.0.0",
         "status": "online",
         "deploy_mode": DEPLOY_MODE,
-        "agents": ["TutorAgent", "GraderAgent", "CurriculumPlannerAgent", "EngagementAgent"],
+        "agents": ["TutorAgent", "CurriculumPlannerAgent", "BusinessInsightsAgent"],
         "inference": {
             "mode": qwen_client.INFERENCE_MODE,
             "provider": qwen_client.get_active_provider(),

@@ -5,14 +5,12 @@ Includes explicit console logging for live execution tracking.
 from fastapi import APIRouter, HTTPException
 from models.schemas import (
     TutorRequest, TutorResponse,
-    GradeRequest, GradeResponse,
     CurriculumRequest, CurriculumResponse,
-    EngagementRequest, EngagementResponse,
+    BusinessInsightsRequest, BusinessInsightsResponse,
 )
 import agents.tutor_agent as tutor_agent
-import agents.grader_agent as grader_agent
 import agents.curriculum_agent as curriculum_agent
-import agents.engagement_agent as engagement_agent
+import agents.business_insights_agent as business_insights_agent
 
 router = APIRouter(prefix="/agent", tags=["Agents"])
 
@@ -36,22 +34,7 @@ async def tutor_endpoint(req: TutorRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/grade", response_model=GradeResponse, summary="Grader Agent — Multi-dimensional scoring")
-async def grade_endpoint(req: GradeRequest):
-    """
-    GraderAgent endpoint.
-    Returns correctness + efficiency + independence + creativity scores.
-    """
-    print(f"\n[AgentRoutes] === POST /agent/grade ===")
-    print(f"   Child ID: {req.child_id} | Lesson: {req.lesson_id}")
-    print(f"   Time Spent: {req.time_seconds}s")
-    try:
-        res = await grader_agent.run(req)
-        print(f"   [GraderAgent] Score: {res.score}/100 | Badge: {res.badge}")
-        return res
-    except Exception as e:
-        print(f"   [GraderAgent ERROR] {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+
 
 
 @router.post("/curriculum", response_model=CurriculumResponse, summary="Curriculum Planner Agent")
@@ -74,20 +57,21 @@ async def curriculum_endpoint(req: CurriculumRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/engage", response_model=EngagementResponse, summary="Engagement Agent — Session observer")
-async def engagement_endpoint(req: EngagementRequest):
+@router.post("/business-insights", response_model=BusinessInsightsResponse, summary="Business Insights Agent — Growth & platform optimization advisor")
+async def business_insights_endpoint(req: BusinessInsightsRequest):
     """
-    EngagementAgent endpoint.
-    Detects disengagement and returns intervention recommendations.
+    BusinessInsightsAgent endpoint.
+    Analyzes platform metrics and delivers strategic recommendations for growth, monetization, and retention.
     """
-    print(f"\n[AgentRoutes] === POST /agent/engage ===")
-    print(f"   Child ID: {req.child_id} | Idle Time: {req.idle_seconds}s")
+    print(f"\n[AgentRoutes] === POST /agent/business-insights ===")
+    print(f"   Students: {req.total_students} | Paid Subscriptions: {req.active_subscriptions}")
+    print(f"   Revenue (PKR): {req.total_revenue} | Avg Score: {req.average_score}%")
     try:
-        res = await engagement_agent.run(req)
-        print(f"   [EngagementAgent] Needed: {res.intervention_needed} | Type: {res.intervention_type}")
+        res = await business_insights_agent.run(req)
+        print(f"   [BusinessInsightsAgent] Summary: '{res.executive_summary[:70]}...' | Health Score: {res.health_score}/100")
         return res
     except Exception as e:
-        print(f"   [EngagementAgent ERROR] {e}")
+        print(f"   [BusinessInsightsAgent ERROR] {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

@@ -59,6 +59,17 @@ async def append_observation(child_id: str, observation: str):
     await update_memory(child_id, {"observations": obs})
 
 
+import uuid
+
+def _is_valid_uuid(val: Optional[str]) -> bool:
+    if not val:
+        return False
+    try:
+        uuid.UUID(str(val))
+        return True
+    except (ValueError, TypeError):
+        return False
+
 async def log_agent_action(
     child_id: Optional[str],
     agent_name: str,
@@ -73,8 +84,9 @@ async def log_agent_action(
     if not sb:
         return
     try:
+        safe_child_id = child_id if _is_valid_uuid(child_id) else None
         sb.table("agent_logs").insert({
-            "child_id": child_id,
+            "child_id": safe_child_id,
             "agent_name": agent_name,
             "action": action,
             "tool_used": tool_used,

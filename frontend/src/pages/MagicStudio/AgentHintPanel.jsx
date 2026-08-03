@@ -1,7 +1,7 @@
 // AgentHintPanel.jsx — Multi-turn AI Agent Panel for Magic Studio
 // Replaces the simple one-shot SittingCatHelpButton with a full conversational interface
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { requestHint, checkEngagement } from '../../agents/AgentOrchestrator';
+import { requestHint } from '../../agents/AgentOrchestrator';
 
 // ─── Cat SVG (reused from SittingCatHelpButton) ─────────────────────────────
 function CatSvg({ size = 36, isThinking = false }) {
@@ -118,36 +118,7 @@ export default function AgentHintPanel({
 
     useEffect(() => { scrollToBottom(); }, [messages]);
 
-    // ─── Periodic Engagement Agent Observer ──────────────────────────────────
-    useEffect(() => {
-        if (!lessonId) return;
 
-        const checkInterval = setInterval(async () => {
-            try {
-                const res = await checkEngagement({ lessonId });
-                if (res && res.intervention_needed && res.message) {
-                    const agentMsg = {
-                        role: 'assistant',
-                        content: res.message,
-                        interventionType: res.intervention_type,
-                        animationTrigger: res.animation_trigger,
-                        isEngagementIntervention: true,
-                        ts: Date.now(),
-                    };
-
-                    setMessages(prev => {
-                        const lastMsg = prev[prev.length - 1];
-                        if (lastMsg && lastMsg.content === res.message) return prev;
-                        return [...prev, agentMsg];
-                    });
-                }
-            } catch (err) {
-                console.warn('[AgentHintPanel] Engagement observer warning:', err);
-            }
-        }, 5000); // Check every 5 seconds for disengagement signals (fast UI testing)
-
-        return () => clearInterval(checkInterval);
-    }, [lessonId]);
 
     const sendHintRequest = useCallback(async (userMessage = null) => {
         if (isThinking) return;
