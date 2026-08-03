@@ -28,6 +28,7 @@ def _get_local_pipeline():
 
     model_dir = Path(QWEN_MODEL_PATH)
     if not model_dir.exists():
+        print(f"[QwenClient] Local model directory not found at path: '{QWEN_MODEL_PATH}'. Check QWEN_MODEL_PATH env var.")
         return None
 
     try:
@@ -116,10 +117,12 @@ async def _try_vllm(system_prompt, user_prompt, max_tokens, temperature):
 
 def _try_transformers_sync(system_prompt, user_prompt, max_tokens, temperature):
     """Try local HuggingFace transformers pipeline (synchronous)."""
+    print(f"[QwenClient] Requesting HuggingFace Transformers pipeline execution on path: '{QWEN_MODEL_PATH}'")
     start_ms = time.time() * 1000
 
     pipe = _get_local_pipeline()
     if pipe is None:
+        print("[QwenClient] Local HuggingFace pipeline is None (model missing or load error).")
         return None
 
     try:
@@ -158,6 +161,8 @@ async def get_completion(
     Route inference to the active provider based on INFERENCE_MODE.
     Modes: "ollama", "vllm", "transformers", "auto"
     """
+    print("========== QWEN CLIENT CALLED ==========")
+    print(f"[QwenClient] INFERENCE_MODE={INFERENCE_MODE} | Target Model={QWEN_MODEL_PATH}")
     start_ms = time.time() * 1000
 
     # ── Explicit mode routing ────────────────────────────────────────────────
