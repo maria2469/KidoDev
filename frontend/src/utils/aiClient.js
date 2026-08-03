@@ -5,9 +5,9 @@
  * Strict Rule: No Emojis in any output.
  */
 
-const BACKEND_URL = import.meta.env.VITE_AGENT_BACKEND_URL || 'http://localhost:8000';
+import { requestBusinessInsights } from '../agents/AgentOrchestrator';
 
-// Only include ngrok header when talking to an ngrok URL
+const BACKEND_URL = import.meta.env.VITE_AGENT_BACKEND_URL || 'http://localhost:8000';
 const isNgrok = BACKEND_URL.includes('ngrok');
 
 /**
@@ -134,8 +134,6 @@ Respond ONLY with a valid JSON object matching this structure:
         throw err;
     }
 };
-
-import { requestBusinessInsights } from '../agents/AgentOrchestrator';
 
 /**
  * Generate business insights from dashboard metrics via BusinessInsightsAgent

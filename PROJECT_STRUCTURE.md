@@ -13,7 +13,7 @@ kidodev/
 │   ├── inference/              # Qwen 2.5 (AMD ROCm / Cloud) & Ollama LLM clients
 │   ├── memory/                 # Short-term (ring-buffer) & Long-term (Supabase) memory
 │   ├── models/                 # Pydantic schemas
-│   ├── routers/                # Agent & Benchmark API routes
+│   ├── routers/                # Agent API routes (/agent/*)
 │   ├── tools/                  # Agent tool registry & execution dispatchers
 │   ├── main.py                 # FastAPI application entry point
 │   ├── requirements.txt        # Python dependencies
@@ -26,7 +26,7 @@ kidodev/
 │   │   ├── assets/             # Component assets & transparent WebP outputs
 │   │   ├── components/         # Global reusable UI components (Navbar, Footer, ProtectedRoute)
 │   │   ├── pages/              # Main route views
-│   │   │   ├── Admin/          # Admin Dashboard, AMD Benchmark, & Live Agent Activity Feed
+│   │   │   ├── Admin/          # Admin Dashboard & Live Agent Activity Feed
 │   │   │   ├── Auth/           # Auth screens (Parent & School dashboards)
 │   │   │   ├── Games/          # Canvas/DOM mini-games (Donut, Traffic, Maze)
 │   │   │   ├── MagicStudio/    # Blockly drag-and-drop studio with Multi-turn Agent Hint Panel

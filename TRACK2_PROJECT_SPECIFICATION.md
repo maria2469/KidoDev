@@ -130,6 +130,15 @@ To prove native execution on AMD Radeon / Instinct GPU hardware via ROCm within 
 
 ---
 
+## 🔑 Demo Credentials & Quick Access
+
+- **Admin Command Center:** Username `admin@gmail.com` / Password `admin123`
+- **Student Studio Access:** Secret Key `TEST1` or `ADMINPARENTCHILD1`
+- **Parent Dashboard:** Username `12345678` / Password `12345678`
+- **School Admin Dashboard:** Email `adminschool@gmail.com` / Password `adminschool@gmail.com`
+
+---
+
 ## 5. Optimization Description for Inference Speed on AMD Radeon GPU
 
 To achieve sub-second response times and high throughput on AMD Radeon GPUs (and AMD Instinct hardware), the system incorporates key ROCm optimizations:
