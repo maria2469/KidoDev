@@ -81,10 +81,10 @@ async def engagement_endpoint(req: EngagementRequest):
     Detects disengagement and returns intervention recommendations.
     """
     print(f"\n[AgentRoutes] === POST /agent/engage ===")
-    print(f"   Child ID: {req.child_id} | Idle Time: {req.idle_time_seconds}s")
+    print(f"   Child ID: {req.child_id} | Idle Time: {req.idle_seconds}s")
     try:
         res = await engagement_agent.run(req)
-        print(f"   [EngagementAgent] Action: {res.recommended_action} | Score: {res.engagement_score}")
+        print(f"   [EngagementAgent] Needed: {res.intervention_needed} | Type: {res.intervention_type}")
         return res
     except Exception as e:
         print(f"   [EngagementAgent ERROR] {e}")

@@ -195,9 +195,21 @@ const curriculumCache = new Map();
 export async function requestCurriculum({ childId: customChildId, completedLessons, weakBlockTypes, strongBlockTypes, level, totalXp, totalCompleted, forceRefresh = false }) {
   const childId = customChildId || getChildId() || 'default_child';
 
-  // Return cached result if already fetched once for this child
+  // 1. Return in-memory cached result if already fetched once in this session
   if (!forceRefresh && curriculumCache.has(childId)) {
     return curriculumCache.get(childId);
+  }
+
+  // 2. Check sessionStorage cache for persistent session reuse across tabs/pages
+  if (!forceRefresh && typeof window !== 'undefined' && window.sessionStorage) {
+    try {
+      const stored = sessionStorage.getItem(`kd_curriculum_cache_${childId}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        curriculumCache.set(childId, parsed);
+        return parsed;
+      }
+    } catch {}
   }
 
   const backendOk = await checkBackend();
@@ -226,6 +238,12 @@ export async function requestCurriculum({ childId: customChildId, completedLesso
   }
 
   curriculumCache.set(childId, result);
+  if (typeof window !== 'undefined' && window.sessionStorage) {
+    try {
+      sessionStorage.setItem(`kd_curriculum_cache_${childId}`, JSON.stringify(result));
+    } catch {}
+  }
+
   return result;
 }
 

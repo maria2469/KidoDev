@@ -189,11 +189,23 @@ export default function Levels() {
             
             // Check cache for instant rendering
             let hasCache = false;
+            const isHw = (item) => {
+                if (!item) return false;
+                if (item.is_homework || item.category === 'homework') return true;
+                const str = `${item.title || ''} ${item.name || ''} ${item.id || ''} ${item.description || ''}`.toLowerCase();
+                return str.includes('homework') || str.includes('home work');
+            };
+
             try {
                 const cachedCurr = sessionStorage.getItem('kido_curriculum_cache');
                 const cachedComps = sessionStorage.getItem('kido_completions_cache');
                 if (cachedCurr) {
-                    setCurriculum(JSON.parse(cachedCurr));
+                    const parsed = JSON.parse(cachedCurr);
+                    const filteredCache = parsed.filter(c => !isHw(c)).map(c => ({
+                        ...c,
+                        projects: (c.projects || []).filter(p => !isHw(p))
+                    }));
+                    setCurriculum(filteredCache);
                     if (cachedComps) setCompletions(JSON.parse(cachedComps));
                     setLoading(false);
                     hasCache = true;
@@ -220,11 +232,12 @@ export default function Levels() {
                 ]);
                 
                 if (clsR.data) {
-                    const limitedCls = clsR.data.slice(0, 6);
-                    const formatted = limitedCls.map(c => ({
+                    // Filter strictly for active curriculum levels (1 to 6)
+                    const mainLevels = clsR.data.filter(c => c.level >= 1 && c.level <= 6 && !isHw(c));
+                    const formatted = mainLevels.map(c => ({
                         ...c,
                         id: `level-${c.level}`,
-                        projects: lesR.data ? lesR.data.filter(l => l.class_level === c.level) : [],
+                        projects: lesR.data ? lesR.data.filter(l => l.class_level === c.level && !isHw(l)) : [],
                     }));
                     setCurriculum(formatted);
                     try { sessionStorage.setItem('kido_curriculum_cache', JSON.stringify(formatted)); } catch(e){}

@@ -72,6 +72,13 @@ const Levels = () => {
     const [completions, setCompletions] = useState({});
 
     useEffect(() => {
+        const isHw = (item) => {
+            if (!item) return false;
+            if (item.is_homework || item.category === 'homework') return true;
+            const str = `${item.title || ''} ${item.name || ''} ${item.id || ''} ${item.description || ''}`.toLowerCase();
+            return str.includes('homework') || str.includes('home work');
+        };
+
         const fetchAll = async () => {
             const [classesRes, lessonsRes] = await Promise.all([
                 supabase.from('course_classes').select('*').order('level', { ascending: true }),
@@ -79,11 +86,12 @@ const Levels = () => {
             ]);
 
             if (classesRes.data) {
-                const curriculumData = classesRes.data.map(c => ({
+                const mainClasses = classesRes.data.filter(c => c.level >= 1 && c.level <= 6 && !isHw(c));
+                const curriculumData = mainClasses.map(c => ({
                     ...c,
                     id: `level-${c.level}`,
                     projects: lessonsRes.data
-                        ? lessonsRes.data.filter(l => l.class_level === c.level)
+                        ? lessonsRes.data.filter(l => l.class_level === c.level && !isHw(l))
                         : []
                 }));
                 setCurriculum(curriculumData);
