@@ -2,7 +2,6 @@
   <h1>KidoDev + AMD Developer Cloud Architecture</h1>
   <p><strong>Direct AMD GPU Inference & Multi-Agent Pedagogical Copilot</strong></p>
   <p>🏆 <strong>AMD Hackathon — Track 2: Agentic AI Submission</strong></p>
-  <p>🌐 <strong>Live Web Application:</strong> <a href="https://kidodevai.netlify.app">kidodevai.netlify.app</a></p>
   <p>🔗 <strong>Backend Ngrok Gateway:</strong> <code>https://khalilah-piteous-cortez.ngrok-free.dev</code></p>
 </div>
 
@@ -231,7 +230,7 @@ SUPABASE_SERVICE_ROLE_KEY=sb_publishable_oh-OLBt29AfkWdhg5zIOrg_nf1cva3z
 MODEL_NAME=qwen2.5-1.5b
 DEVICE=rocm
 PORT=8000
-ALLOWED_ORIGINS=http://localhost:5173,https://kidodevai.netlify.app
+ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
 ```
 
 ---

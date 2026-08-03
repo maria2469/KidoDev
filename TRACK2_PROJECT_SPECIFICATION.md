@@ -5,7 +5,6 @@
 **Target Track:** Track 2: Agentic AI (Development & Local Deployment of Private AI Agents)  
 **Infrastructure Host:** AMD Developer Cloud GPU Host Instance  
 **Inference Engine:** Direct AMD GPU Local Model Serving (`DEVICE=rocm` via ROCm + PyTorch)  
-**Live Web Application:** [https://kidodevai.netlify.app](https://kidodevai.netlify.app)  
 **Backend Ngrok Gateway:** `https://khalilah-piteous-cortez.ngrok-free.dev`  
 
 ---
@@ -149,7 +148,7 @@ SUPABASE_SERVICE_ROLE_KEY=sb_publishable_oh-OLBt29AfkWdhg5zIOrg_nf1cva3z
 MODEL_NAME=qwen2.5-1.5b
 DEVICE=rocm
 PORT=8000
-ALLOWED_ORIGINS=http://localhost:5173,https://kidodevai.netlify.app
+ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
 ```
 
 ---

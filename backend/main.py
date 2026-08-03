@@ -40,7 +40,7 @@ app = FastAPI(
 
 # ─── CORS ─────────────────────────────────────────────────────────────────────
 
-origins_raw = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000,https://kidodevai.netlify.app")
+origins_raw = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000")
 origins = [o.strip() for o in origins_raw.split(",")]
 
 app.add_middleware(

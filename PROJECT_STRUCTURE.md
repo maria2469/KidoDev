@@ -42,7 +42,6 @@ kidodev/
 │   └── migrations/             # SQL migration files (002_agent_tables.sql)
 │
 ├── .agents/                    # Agent-specific workflows & instructions
-├── netlify.toml                # Netlify deployment configuration (base: frontend)
 ├── package.json                # Root package delegation scripts (npm run dev, npm run build)
 └── README.md                   # Project overview & documentation
 ```
