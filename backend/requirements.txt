@@ -16,3 +16,8 @@ supabase>=2.10.0
 
 # Utilities
 python-multipart>=0.0.20
+
+# Local Inference Engine (AMD Developer Cloud ROCm PyTorch Environment)
+transformers>=4.45.0
+accelerate>=1.0.0
+# Note: torch is pre-installed via ROCm index: pip install torch --index-url https://download.pytorch.org/whl/rocm6.2
