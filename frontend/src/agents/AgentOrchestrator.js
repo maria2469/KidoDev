@@ -2,6 +2,7 @@
  * Agent Orchestrator — Frontend
  * Central coordinator that routes requests to the appropriate backend agent.
  * Falls back to smart hint engine if the backend is unavailable.
+ * Supports local, ngrok, and cloud deployment modes.
  */
 
 import { generateLiveHint, generateLiveSolution } from '../utils/aiClient';
@@ -10,14 +11,15 @@ import {
   getConversationHistory, incrementHintCount,
 } from './memory/AgentMemoryStore';
 
-const BACKEND_URL = import.meta.env.VITE_AGENT_BACKEND_URL || 'https://khalilah-piteous-cortez.ngrok-free.dev';
+const BACKEND_URL = import.meta.env.VITE_AGENT_BACKEND_URL || 'http://localhost:8000';
+const isNgrok = BACKEND_URL.includes('ngrok');
 
 let _backendAvailable = null; // null = unchecked, true/false = known
 
-// Standard headers for FastAPI backend via ngrok tunnel
+// Build headers — only add ngrok header when using ngrok tunnel
 const AGENT_HEADERS = {
   'Content-Type': 'application/json',
-  'ngrok-skip-browser-warning': 'true',
+  ...(isNgrok && { 'ngrok-skip-browser-warning': 'true' }),
 };
 
 // ─── Backend Health Check ──────────────────────────────────────────────────────
@@ -26,8 +28,10 @@ async function checkBackend() {
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 2500);
+    const headers = {};
+    if (isNgrok) headers['ngrok-skip-browser-warning'] = 'true';
     const res = await fetch(`${BACKEND_URL}/health`, {
-      headers: { 'ngrok-skip-browser-warning': 'true' },
+      headers,
       signal: controller.signal,
     });
     clearTimeout(timer);
@@ -239,6 +243,15 @@ function _generateFallbackCurriculum({ completedLessons = [], level = 'Bronze', 
         { lesson_id: 'lesson_1', title: 'Sprite Movement Basics', reason: 'Recommended starter lesson for new explorers', priority: 'high' },
         { lesson_id: 'lesson_2', title: 'Loop & Repeat Magic', reason: 'Learn how to repeat actions easily', priority: 'medium' },
       ],
+      homework_assignments: [
+        {
+          title: "Starter Explorer Mission",
+          objective: "Add a Move block and a Say block to create your first animated greeting!",
+          target_block_types: ["s_when_flag", "s_move", "s_say"],
+          difficulty: "easy",
+          estimated_minutes: 5,
+        }
+      ],
     };
   }
 
@@ -327,6 +340,16 @@ function _generateFallbackCurriculum({ completedLessons = [], level = 'Bronze', 
     ? `Complete 1 Challenge without using Hint assistance`
     : `Unlock Gold Master Badge Tier`;
 
+  const homework_assignments = [
+    {
+      title: sortedWeakBlocks.length > 0 ? `${blockNameMap[sortedWeakBlocks[0]] || 'Targeted'} Practice Mission` : "Loop Master Challenge",
+      objective: sortedWeakBlocks.length > 0 ? `Practice using ${blockNameMap[sortedWeakBlocks[0]] || 'weak blocks'} to build speed and accuracy.` : "Make your sprite walk in a perfect square by using a Repeat loop with Move and Turn blocks.",
+      target_block_types: sortedWeakBlocks.length > 0 ? [sortedWeakBlocks[0], "s_when_flag", "s_move"] : ["s_when_flag", "s_repeat", "s_move", "s_turn_r"],
+      difficulty: sortedWeakBlocks.length > 0 ? "medium" : "easy",
+      estimated_minutes: 10,
+    }
+  ];
+
   return {
     learning_path_summary: summary,
     weekly_goal: goal,
@@ -337,6 +360,7 @@ function _generateFallbackCurriculum({ completedLessons = [], level = 'Bronze', 
       { lesson_id: 'lesson_1', title: 'Sprite Motion & Directions', reason: 'Reinforce foundational movement accuracy', priority: avgScore < 70 ? 'high' : 'medium' },
       { lesson_id: 'lesson_2', title: 'Repeat Loop Challenge', reason: sortedWeakBlocks.includes('s_repeat') ? 'Targeted practice for identified loop weakness' : 'Practice loop block efficiency', priority: 'high' },
     ],
+    homework_assignments,
   };
 }
 
@@ -351,7 +375,7 @@ export async function checkEngagement({ lessonId }) {
   const state = getSessionState();
 
   try {
-    const result = await agentRequest('/agent/engage', {
+    const result = await postAgent('/agent/engage', {
       child_id: childId,
       session_id: sessionId,
       lesson_id: lessonId,
@@ -383,8 +407,10 @@ export async function runBenchmark(prompt = '', useLocal = false) {
 
 export async function fetchBenchmarkHistory() {
   try {
+    const headers = {};
+    if (isNgrok) headers['ngrok-skip-browser-warning'] = 'true';
     const res = await fetch(`${BACKEND_URL}/benchmark/history?limit=30`, {
-      headers: { 'ngrok-skip-browser-warning': 'true' },
+      headers,
       signal: AbortSignal.timeout(5000),
     });
     return res.ok ? await res.json() : { logs: [] };
@@ -395,8 +421,10 @@ export async function fetchBenchmarkHistory() {
 
 export async function fetchBackendHealth() {
   try {
+    const headers = {};
+    if (isNgrok) headers['ngrok-skip-browser-warning'] = 'true';
     const res = await fetch(`${BACKEND_URL}/benchmark/health`, {
-      headers: { 'ngrok-skip-browser-warning': 'true' },
+      headers,
       signal: AbortSignal.timeout(4000),
     });
     return res.ok ? await res.json() : null;
@@ -406,12 +434,15 @@ export async function fetchBackendHealth() {
 }
 
 export function getBackendArchitectureInfo() {
+  const isLocal = BACKEND_URL.includes('localhost');
+  const mode = isNgrok ? 'ngrok' : isLocal ? 'local' : 'cloud';
   return {
     frontend: 'React (Vite)',
-    tunnel: 'ngrok',
+    tunnel: mode,
     backend: 'FastAPI',
-    model: 'Qwen 2.5 on AMD GPU',
+    model: 'Qwen 2.5 (Ollama / AMD GPU)',
     backendUrl: BACKEND_URL,
+    deployMode: mode,
   };
 }
 

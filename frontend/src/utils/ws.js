@@ -5,7 +5,7 @@ let ws;
 export const connectWebSocket = (studentId) => {
     try {
         // Use a placeholder or environment variable for the backend URL
-        const backendUrl = import.meta.env.VITE_BACKEND_WS_URL || "ws://localhost:8601";
+        const backendUrl = import.meta.env.VITE_BACKEND_WS_URL || "ws://localhost:8000";
         ws = new WebSocket(backendUrl);
 
         ws.onopen = () => console.log("Connected to AI feedback server");

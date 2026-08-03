@@ -70,14 +70,32 @@ async def get_benchmark_history(limit: int = 20):
 
 @router.get("/health", summary="Check inference backends health")
 async def health_check():
-    """Check availability of Qwen2.5 on AMD GPU."""
+    """Check availability of all inference backends."""
+    from inference import ollama_client
+
     local_ok = await qwen_client.check_health()
+    ollama_ok = await ollama_client.check_health()
+    ollama_models = await ollama_client.list_models() if ollama_ok else []
+
     return {
-        "local_qwen": {
-            "status": "available" if local_ok else "not_running",
-            "gpu": "AMD ROCm (Qwen2.5-1.5B)",
-            "model": qwen_client.QWEN_MODEL,
-            "path": qwen_client.QWEN_MODEL_PATH,
-            "hint": f"Local model loaded from {qwen_client.QWEN_MODEL_PATH}",
+        "inference_mode": qwen_client.INFERENCE_MODE,
+        "active_provider": qwen_client.get_active_provider(),
+        "overall_status": "available" if local_ok else "not_running",
+        "backends": {
+            "ollama": {
+                "status": "available" if ollama_ok else "not_running",
+                "host": ollama_client.OLLAMA_HOST,
+                "model": ollama_client.OLLAMA_MODEL,
+                "available_models": ollama_models,
+            },
+            "vllm": {
+                "status": "configured",
+                "host": qwen_client.QWEN_HOST,
+                "model": qwen_client.QWEN_MODEL,
+            },
+            "transformers": {
+                "status": "configured",
+                "model_path": qwen_client.QWEN_MODEL_PATH,
+            },
         },
     }

@@ -1,10 +1,14 @@
 /**
- * AI Client — Qwen 2.5 on AMD GPU Integration
- * Routes all AI generation through the FastAPI backend via ngrok tunnel.
+ * AI Client — Multi-Mode Backend Integration
+ * Routes all AI generation through the FastAPI backend.
+ * Supports local, ngrok, and cloud deployment modes.
  * Strict Rule: No Emojis in any output.
  */
 
-const BACKEND_URL = import.meta.env.VITE_AGENT_BACKEND_URL || 'https://khalilah-piteous-cortez.ngrok-free.dev';
+const BACKEND_URL = import.meta.env.VITE_AGENT_BACKEND_URL || 'http://localhost:8000';
+
+// Only include ngrok header when talking to an ngrok URL
+const isNgrok = BACKEND_URL.includes('ngrok');
 
 /**
  * Robust JSON parser for AI outputs that strips control characters
@@ -26,7 +30,7 @@ const qwenCache = new Map();
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes cache TTL
 
 /**
- * Core function to communicate with Qwen on AMD GPU via FastAPI backend
+ * Core function to communicate with backend inference engine
  */
 const getQwenCompletion = async (systemPrompt, userPrompt) => {
     const cacheKey = `${systemPrompt}_${userPrompt}`;
@@ -45,13 +49,17 @@ const getQwenCompletion = async (systemPrompt, userPrompt) => {
 
     const fetchPromise = (async () => {
         try {
+            const headers = {
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+            };
+            if (isNgrok) {
+                headers["ngrok-skip-browser-warning"] = "true";
+            }
+
             const response = await fetch(`${BACKEND_URL}/benchmark/run`, {
                 method: "POST",
-                headers: {
-                    "Accept": "application/json",
-                    "Content-Type": "application/json",
-                    "ngrok-skip-browser-warning": "true",
-                },
+                headers,
                 body: JSON.stringify({
                     prompt: `${systemPrompt}\n\nUser Request: ${userPrompt}`,
                     use_local: true,
@@ -68,7 +76,7 @@ const getQwenCompletion = async (systemPrompt, userPrompt) => {
             qwenCache.set(cacheKey, { result, timestamp: Date.now() });
             return result;
         } catch (err) {
-            console.error('[aiClient] Qwen on AMD GPU Backend Error:', err.message);
+            console.error('[aiClient] Backend Error:', err.message);
             throw err;
         } finally {
             inFlightPromotions.delete(cacheKey);

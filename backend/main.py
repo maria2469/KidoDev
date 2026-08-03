@@ -1,6 +1,11 @@
 """
 Kido Dev — Agentic AI Backend
-FastAPI app powering the multi-agent system on AMD GPUs.
+FastAPI app powering the multi-agent system.
+
+Deployment Modes (DEPLOY_MODE env var):
+  local  — Both frontend & backend on localhost (no tunnel)
+  ngrok  — Backend exposed via ngrok tunnel
+  cloud  — Deployed to cloud (Railway/Render/etc.)
 
 Agents:
   TutorAgent         — Multi-turn, memory-aware coding hints
@@ -9,7 +14,7 @@ Agents:
   EngagementAgent    — Session disengagement detection
 
 Inference:
-  Engine — Qwen2.5-1.5B on AMD GPU (ROCm)
+  Engine — Ollama (Qwen2.5), vLLM (AMD ROCm), or HuggingFace Transformers
 """
 import os
 from dotenv import load_dotenv
@@ -19,20 +24,25 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routers.agent_routes import router as agent_router
 from routers.benchmark_routes import router as benchmark_router
+from inference import qwen_client
+
+# ─── Deploy Mode ──────────────────────────────────────────────────────────────
+
+DEPLOY_MODE = os.getenv("DEPLOY_MODE", "local").lower()
 
 # ─── App ──────────────────────────────────────────────────────────────────────
 
 app = FastAPI(
     title="Kido Dev Agentic AI Backend",
-    description="Multi-agent system running natively on AMD GPUs via Qwen2.5-1.5B (ROCm)",
-    version="2.0.0",
+    description="Multi-agent system with flexible deployment (local / ngrok / cloud)",
+    version="3.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
 )
 
 # ─── CORS ─────────────────────────────────────────────────────────────────────
 
-origins_raw = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,https://kidodevai.netlify.app")
+origins_raw = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000,https://kidodevai.netlify.app")
 origins = [o.strip() for o in origins_raw.split(",")]
 
 app.add_middleware(
@@ -54,19 +64,43 @@ app.include_router(benchmark_router)
 async def root():
     return {
         "service": "Kido Dev Agentic AI Backend",
-        "version": "2.0.0",
+        "version": "3.0.0",
         "status": "online",
+        "deploy_mode": DEPLOY_MODE,
         "agents": ["TutorAgent", "GraderAgent", "CurriculumPlannerAgent", "EngagementAgent"],
         "inference": {
-            "engine": "Qwen2.5-1.5B on AMD GPU",
-            "provider": "AMD ROCm GPU Inference",
+            "mode": qwen_client.INFERENCE_MODE,
+            "provider": qwen_client.get_active_provider(),
         },
         "docs": "/docs",
     }
 
 @app.get("/health", tags=["Health"])
 async def health():
-    return {"status": "healthy"}
+    inference_healthy = await qwen_client.check_health()
+    return {
+        "status": "healthy",
+        "deploy_mode": DEPLOY_MODE,
+        "inference_ready": inference_healthy,
+        "inference_provider": qwen_client.get_active_provider(),
+    }
+
+
+# ─── Startup Banner ──────────────────────────────────────────────────────────
+
+@app.on_event("startup")
+async def startup_banner():
+    provider = qwen_client.get_active_provider()
+    healthy = await qwen_client.check_health()
+    print()
+    print("=" * 60)
+    print("  Kido Dev — Agentic AI Backend v3.0.0")
+    print(f"  Deploy Mode  : {DEPLOY_MODE}")
+    print(f"  Inference    : {provider}")
+    print(f"  Health       : {'READY' if healthy else 'NOT AVAILABLE (fallback active)'}")
+    print(f"  Docs         : http://localhost:{os.getenv('PORT', 8000)}/docs")
+    print("=" * 60)
+    print()
 
 
 # ─── Entry point ──────────────────────────────────────────────────────────────

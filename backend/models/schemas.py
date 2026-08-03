@@ -58,6 +58,15 @@ class GradeResponse(BaseModel):
 
 # ─── Curriculum Agent ─────────────────────────────────────────────────────────
 
+class HomeworkAssignment(BaseModel):
+    title: str                          # "Loop Master Challenge"
+    objective: str                      # "Build a sprite that walks in a square using repeat loops"
+    target_block_types: List[str] = []  # ["s_repeat", "s_move", "s_turn_r"]
+    difficulty: str = "medium"          # "easy" | "medium" | "hard"
+    estimated_minutes: int = 10
+    reason: str = ""                    # "You needed hints on loops 3 times"
+
+
 class CurriculumRequest(BaseModel):
     child_id: str
     completed_lessons: List[Dict[str, Any]] = []
@@ -69,6 +78,7 @@ class CurriculumRequest(BaseModel):
 
 class CurriculumResponse(BaseModel):
     recommended_lessons: List[Dict[str, Any]] = []
+    homework_assignments: List[Dict[str, Any]] = []
     learning_path_summary: str
     skill_gaps: List[str] = []
     strengths: List[str] = []

@@ -3,7 +3,8 @@
  * Short-term (in-memory) + long-term (Supabase) memory for the agent layer.
  */
 
-const BACKEND_URL = import.meta.env.VITE_AGENT_BACKEND_URL || 'https://khalilah-piteous-cortez.ngrok-free.dev';
+const BACKEND_URL = import.meta.env.VITE_AGENT_BACKEND_URL || 'http://localhost:8000';
+const isNgrok = BACKEND_URL.includes('ngrok');
 
 // ─── Session Memory ────────────────────────────────────────────────────────────
 // Tracks: current session ID, conversation history, hint count
@@ -87,9 +88,11 @@ export async function clearRemoteSession() {
   const { childId, sessionId } = sessionState;
   if (!childId || !sessionId) return;
   try {
+    const headers = {};
+    if (isNgrok) headers['ngrok-skip-browser-warning'] = 'true';
     await fetch(`${BACKEND_URL}/agent/memory/${childId}/${sessionId}`, {
       method: 'DELETE',
-      headers: { 'ngrok-skip-browser-warning': 'true' },
+      headers,
     });
   } catch { /* silent */ }
 }

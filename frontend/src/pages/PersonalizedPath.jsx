@@ -76,6 +76,15 @@ export default function PersonalizedPath() {
                         { lesson_id: 'lesson_1', title: 'Sprite Movement Basics', reason: 'Master fundamental block navigation', priority: 'high' },
                         { lesson_id: 'lesson_2', title: 'Loop & Repeat Magic', reason: 'Learn how to repeat actions automatically', priority: 'medium' },
                         { lesson_id: 'lesson_3', title: 'Obstacle Dodge Challenge', reason: 'Practice collision detection and sensing', priority: 'high' }
+                    ],
+                    homework_assignments: [
+                        {
+                            title: "Loop Master Challenge",
+                            objective: "Make your sprite walk in a perfect square by using a Repeat loop with Move and Turn blocks.",
+                            target_block_types: ["s_when_flag", "s_repeat", "s_move", "s_turn_r"],
+                            difficulty: "medium",
+                            estimated_minutes: 10
+                        }
                     ]
                 });
             }
@@ -281,6 +290,69 @@ export default function PersonalizedPath() {
                                 )}
                             </div>
                         </div>
+
+                        {/* Targeted Homework Missions */}
+                        {curriculumData?.homework_assignments?.length > 0 && (
+                            <div style={{
+                                background: 'linear-gradient(135deg, #F0F9FF 0%, #E0F2FE 100%)',
+                                border: '1.5px solid #BAE6FD',
+                                borderRadius: 20, padding: 20,
+                                boxShadow: '0 4px 14px rgba(14,165,233,0.08)'
+                            }}>
+                                <h2 style={{ color: '#0369A1', fontWeight: 900, fontSize: 18, margin: '0 0 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <span>📚</span> Targeted AI Homework Missions
+                                </h2>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                    {curriculumData.homework_assignments.map((hw, i) => (
+                                        <div key={i} style={{
+                                            background: '#FFFFFF',
+                                            border: '1px solid #E0F2FE',
+                                            borderRadius: 16, padding: '16px 20px',
+                                            boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
+                                        }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                                                <div style={{ color: '#0F172A', fontWeight: 800, fontSize: 15 }}>
+                                                    {hw.title}
+                                                </div>
+                                                <div style={{ display: 'flex', gap: 6 }}>
+                                                    <span style={{
+                                                        background: '#F1F5F9', border: '1px solid #CBD5E1',
+                                                        borderRadius: 12, padding: '2px 8px', fontSize: 11, fontWeight: 700, color: '#475569'
+                                                    }}>
+                                                        ⏱️ {hw.estimated_minutes || 10} mins
+                                                    </span>
+                                                    <span style={{
+                                                        background: hw.difficulty === 'hard' ? '#FEF2F2' : hw.difficulty === 'medium' ? '#FFFBEB' : '#F0FDF4',
+                                                        border: `1px solid ${hw.difficulty === 'hard' ? '#FECACA' : hw.difficulty === 'medium' ? '#FDE68A' : '#BBF7D0'}`,
+                                                        borderRadius: 12, padding: '2px 8px', fontSize: 11, fontWeight: 800,
+                                                        color: hw.difficulty === 'hard' ? '#DC2626' : hw.difficulty === 'medium' ? '#D97706' : '#16A34A',
+                                                        textTransform: 'capitalize'
+                                                    }}>
+                                                        {hw.difficulty}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div style={{ color: '#475569', fontSize: 13, fontWeight: 600, lineHeight: 1.5, marginBottom: 8 }}>
+                                                {hw.objective}
+                                            </div>
+                                            {hw.target_block_types?.length > 0 && (
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                                    <span style={{ fontSize: 11, fontWeight: 800, color: '#0284C7' }}>Target Blocks:</span>
+                                                    {hw.target_block_types.map((blk, idx) => (
+                                                        <code key={idx} style={{
+                                                            background: '#E0F2FE', color: '#0369A1',
+                                                            borderRadius: 6, padding: '2px 6px', fontSize: 11, fontWeight: 700
+                                                        }}>
+                                                            {blk}
+                                                        </code>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         {/* Recommended Lessons */}
                         {curriculumData?.recommended_lessons?.length > 0 && (

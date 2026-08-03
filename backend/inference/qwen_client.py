@@ -1,12 +1,19 @@
 """
-Local Qwen2.5 Client — AMD ROCm GPU Inference Engine
-Supports Qwen2.5-1.5B model locally, Ollama, vLLM, and HuggingFace transformers pipeline.
+Qwen Inference Client — Multi-Provider Routing Engine
+Supports: Ollama (local), vLLM/OpenAI-compat, HuggingFace Transformers.
+
+INFERENCE_MODE controls provider selection:
+  "ollama"       — Use Ollama's native /api/chat (default for local dev)
+  "vllm"         — Use vLLM/OpenAI-compatible /v1/chat/completions
+  "transformers" — Use local HuggingFace transformers pipeline
+  "auto"         — Try Ollama → vLLM → Transformers in order (default)
 """
 import os
 import time
 import httpx
 from pathlib import Path
 
+INFERENCE_MODE = os.getenv("INFERENCE_MODE", "auto").lower()
 QWEN_MODEL_PATH = os.getenv("QWEN_MODEL_PATH", "/workspace/workspace/KidoDev/models/qwen2.5-1.5b")
 QWEN_HOST = os.getenv("QWEN_HOST", "http://localhost:11434")
 QWEN_MODEL = os.getenv("QWEN_MODEL", "qwen2.5-1.5b")
@@ -45,22 +52,26 @@ def _get_local_pipeline():
         return None
 
 
-async def get_completion(
-    system_prompt: str,
-    user_prompt: str,
-    max_tokens: int = 512,
-    temperature: float = 0.7,
-    **kwargs
-) -> dict:
-    """
-    Call Qwen2.5 inference engine.
-    Tries local HTTP (Ollama/vLLM) and local HuggingFace transformers.
-    """
+async def _try_ollama(system_prompt, user_prompt, max_tokens, temperature):
+    """Try Ollama's native /api/chat endpoint."""
+    from inference import ollama_client
+    result = await ollama_client.get_completion(
+        system_prompt=system_prompt,
+        user_prompt=user_prompt,
+        max_tokens=max_tokens,
+        temperature=temperature,
+    )
+    if result.get("error") is None and result.get("text"):
+        return result
+    return None
+
+
+async def _try_vllm(system_prompt, user_prompt, max_tokens, temperature):
+    """Try vLLM or any OpenAI-compatible /v1/chat/completions endpoint."""
     start_ms = time.time() * 1000
 
-    # 1. Try local HTTP endpoint (e.g. Ollama or local Qwen server)
     hosts_to_try = []
-    if QWEN_HOST and "8000" not in QWEN_HOST: # Avoid querying FastAPI app on 8000
+    if QWEN_HOST and "8000" not in QWEN_HOST:  # Avoid querying FastAPI app on 8000
         hosts_to_try.append(QWEN_HOST)
     hosts_to_try.append("http://localhost:11434")
 
@@ -77,7 +88,7 @@ async def get_completion(
         }
 
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
+            async with httpx.AsyncClient(timeout=60.0) as client:
                 resp = await client.post(url, json=payload)
                 if resp.status_code == 200:
                     data = resp.json()
@@ -93,40 +104,93 @@ async def get_completion(
                         "latency_ms": latency,
                         "tokens_per_second": tps,
                         "model": QWEN_MODEL,
-                        "gpu_type": "AMD ROCm GPU (Qwen2.5-1.5B)",
-                        "provider": "Local Qwen2.5 (AMD ROCm)",
+                        "gpu_type": "vLLM / OpenAI-Compatible Inference",
+                        "provider": f"vLLM ({host})",
                         "error": None,
                     }
         except Exception:
             pass
 
-    # 2. Try local HuggingFace transformers pipeline fallback
+    return None
+
+
+def _try_transformers_sync(system_prompt, user_prompt, max_tokens, temperature):
+    """Try local HuggingFace transformers pipeline (synchronous)."""
+    start_ms = time.time() * 1000
+
+    pipe = _get_local_pipeline()
+    if pipe is None:
+        return None
+
     try:
-        pipe = _get_local_pipeline()
-        if pipe is not None:
-            prompt_text = f"<|im_start|>system\n{system_prompt}<|im_end|>\n<|im_start|>user\n{user_prompt}<|im_end|>\n<|im_start|>assistant\n"
-            out = pipe(prompt_text, max_new_tokens=max_tokens, do_sample=True, temperature=temperature)
-            gen_text = out[0]["generated_text"].replace(prompt_text, "").replace("<|im_end|>", "").strip()
+        prompt_text = f"<|im_start|>system\n{system_prompt}<|im_end|>\n<|im_start|>user\n{user_prompt}<|im_end|>\n<|im_start|>assistant\n"
+        out = pipe(prompt_text, max_new_tokens=max_tokens, do_sample=True, temperature=temperature)
+        gen_text = out[0]["generated_text"].replace(prompt_text, "").replace("<|im_end|>", "").strip()
 
-            end_ms = time.time() * 1000
-            latency = int(end_ms - start_ms)
-            tokens_out = len(gen_text.split())
-            tps = round(tokens_out / max(latency / 1000, 0.001), 1)
+        end_ms = time.time() * 1000
+        latency = int(end_ms - start_ms)
+        tokens_out = len(gen_text.split())
+        tps = round(tokens_out / max(latency / 1000, 0.001), 1)
 
-            return {
-                "text": gen_text,
-                "tokens_generated": tokens_out,
-                "latency_ms": latency,
-                "tokens_per_second": tps,
-                "model": "qwen2.5-1.5b",
-                "gpu_type": "AMD ROCm GPU (Qwen2.5-1.5B)",
-                "provider": "Local Qwen2.5 (AMD ROCm)",
-                "error": None,
-            }
+        return {
+            "text": gen_text,
+            "tokens_generated": tokens_out,
+            "latency_ms": latency,
+            "tokens_per_second": tps,
+            "model": "qwen2.5-1.5b",
+            "gpu_type": "HuggingFace Transformers (Local)",
+            "provider": "HuggingFace Transformers",
+            "error": None,
+        }
     except Exception as e:
         print(f"[QwenClient] HuggingFace local execution error: {e}")
+        return None
 
-    # 3. Fallback response indicating offline state so callers use smart fallback engine
+
+async def get_completion(
+    system_prompt: str,
+    user_prompt: str,
+    max_tokens: int = 512,
+    temperature: float = 0.7,
+    **kwargs
+) -> dict:
+    """
+    Route inference to the active provider based on INFERENCE_MODE.
+    Modes: "ollama", "vllm", "transformers", "auto"
+    """
+    start_ms = time.time() * 1000
+
+    # ── Explicit mode routing ────────────────────────────────────────────────
+    if INFERENCE_MODE == "ollama":
+        result = await _try_ollama(system_prompt, user_prompt, max_tokens, temperature)
+        if result:
+            return result
+
+    elif INFERENCE_MODE == "vllm":
+        result = await _try_vllm(system_prompt, user_prompt, max_tokens, temperature)
+        if result:
+            return result
+
+    elif INFERENCE_MODE == "transformers":
+        result = _try_transformers_sync(system_prompt, user_prompt, max_tokens, temperature)
+        if result:
+            return result
+
+    elif INFERENCE_MODE == "auto":
+        # Auto mode: try Ollama → vLLM → Transformers
+        result = await _try_ollama(system_prompt, user_prompt, max_tokens, temperature)
+        if result:
+            return result
+
+        result = await _try_vllm(system_prompt, user_prompt, max_tokens, temperature)
+        if result:
+            return result
+
+        result = _try_transformers_sync(system_prompt, user_prompt, max_tokens, temperature)
+        if result:
+            return result
+
+    # ── Fallback — no provider succeeded ─────────────────────────────────────
     model_exists = Path(QWEN_MODEL_PATH).exists()
     return {
         "text": "",
@@ -136,17 +200,38 @@ async def get_completion(
         "model": QWEN_MODEL,
         "gpu_type": "KidoBot Smart Context Engine (Fallback)",
         "provider": "KidoBot Fallback Engine",
-        "error": None if model_exists else f"Model directory {QWEN_MODEL_PATH} not found",
+        "error": None if model_exists else f"No inference provider available (mode={INFERENCE_MODE})",
     }
 
 
 async def check_health() -> bool:
-    """Check if Qwen2.5 model backend is ready."""
+    """Check if any inference backend is ready."""
+    # Check Ollama first
+    from inference import ollama_client
+    if await ollama_client.check_health():
+        return True
+
+    # Check local model path
     if Path(QWEN_MODEL_PATH).exists():
         return True
+
+    # Check vLLM / OpenAI-compat endpoint
     try:
         async with httpx.AsyncClient(timeout=3.0) as client:
             resp = await client.get(f"{QWEN_HOST}/v1/models")
             return resp.status_code == 200
     except Exception:
         return False
+
+
+def get_active_provider() -> str:
+    """Return a human-readable string describing the active inference mode."""
+    if INFERENCE_MODE == "ollama":
+        from inference import ollama_client
+        return f"Ollama ({ollama_client.OLLAMA_MODEL} @ {ollama_client.OLLAMA_HOST})"
+    elif INFERENCE_MODE == "vllm":
+        return f"vLLM ({QWEN_MODEL} @ {QWEN_HOST})"
+    elif INFERENCE_MODE == "transformers":
+        return f"HuggingFace Transformers ({QWEN_MODEL_PATH})"
+    else:
+        return f"Auto-detect (Ollama → vLLM → Transformers)"

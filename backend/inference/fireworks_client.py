@@ -1,12 +1,12 @@
 """
-Qwen AI Client — Compatibility Wrapper
-Redirects completion calls directly to local Qwen 2.5 on AMD GPU.
+Fireworks AI Client — Compatibility Wrapper
+Redirects completion calls to the inference routing engine.
 """
 from typing import Optional
 from inference import qwen_client
 
-MODEL_ID = "qwen2.5-1.5b"
-FALLBACK_MODEL = "qwen2.5-1.5b"
+MODEL_ID = qwen_client.QWEN_MODEL
+FALLBACK_MODEL = qwen_client.QWEN_MODEL
 
 async def get_completion(
     system_prompt: str,
@@ -16,7 +16,7 @@ async def get_completion(
     use_fallback: bool = False,
 ) -> dict:
     """
-    Redirect all calls directly to Qwen 2.5 on AMD GPU.
+    Redirect all calls to the inference routing engine.
     """
     return await qwen_client.get_completion(
         system_prompt=system_prompt,
