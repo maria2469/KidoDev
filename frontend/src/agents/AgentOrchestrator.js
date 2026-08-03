@@ -15,6 +15,7 @@ const BACKEND_URL = import.meta.env.VITE_AGENT_BACKEND_URL || 'http://localhost:
 const isNgrok = BACKEND_URL.includes('ngrok');
 
 let _backendAvailable = null; // null = unchecked, true/false = known
+let _lastHealthCheckTime = 0;
 
 // Build headers — only add ngrok header when using ngrok tunnel
 const AGENT_HEADERS = {
@@ -24,10 +25,18 @@ const AGENT_HEADERS = {
 
 // ─── Backend Health Check ──────────────────────────────────────────────────────
 async function checkBackend() {
-  if (_backendAvailable !== null) return _backendAvailable;
+  const now = Date.now();
+  // Cache successful check for 30s; re-check failed check after 5s
+  if (_backendAvailable === true && (now - _lastHealthCheckTime < 30000)) {
+    return true;
+  }
+  if (_backendAvailable === false && (now - _lastHealthCheckTime < 5000)) {
+    return false;
+  }
+
   try {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 2500);
+    const timer = setTimeout(() => controller.abort(), 4000);
     const headers = {};
     if (isNgrok) headers['ngrok-skip-browser-warning'] = 'true';
     const res = await fetch(`${BACKEND_URL}/health`, {
@@ -36,8 +45,10 @@ async function checkBackend() {
     });
     clearTimeout(timer);
     _backendAvailable = res.ok;
+    _lastHealthCheckTime = now;
   } catch {
     _backendAvailable = false;
+    _lastHealthCheckTime = now;
   }
   return _backendAvailable;
 }

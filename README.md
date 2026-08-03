@@ -149,6 +149,20 @@ flowchart TB
 
 ---
 
+## 📸 AMD Developer Cloud GPU Deployment Evidence
+
+Verification captures demonstrating direct execution on AMD Cloud GPU hardware via ROCm stack:
+
+<div align="center">
+  <img src="docs/images/evidence_amd_cloud_1.jpg" alt="AMD Cloud GPU Verification 1" width="750" />
+  <p><em>Figure 1: Verified AMD Developer Cloud Environment — PyTorch ROCm (HIP 7.2) & Model Weights Load</em></p>
+  <br/>
+  <img src="docs/images/evidence_amd_cloud_2.jpg" alt="AMD Cloud GPU Verification 2" width="750" />
+  <p><em>Figure 2: GPU Allocation (`cuda:0` on ROCm) & Qwen 2.5 Local Execution Telemetry</em></p>
+</div>
+
+---
+
 ## 🔄 AI Request & Learning Pipeline
 
 When a student requests help:

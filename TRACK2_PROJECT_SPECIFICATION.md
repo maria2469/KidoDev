@@ -87,6 +87,20 @@ flowchart TB
 
 ---
 
+## 📸 AMD Developer Cloud GPU Evidence & Telemetry Verification
+
+To prove native execution on AMD Radeon / Instinct GPU hardware via ROCm within the **AMD Developer Cloud**, below are live console execution captures confirming model loading, HIP runtime initialization, and GPU device allocation:
+
+<div align="center">
+  <img src="docs/images/evidence_amd_cloud_1.jpg" alt="AMD Cloud GPU Telemetry Verification 1" width="750" />
+  <p><em>Figure 2: Live AMD Developer Cloud GPU Terminal — PyTorch ROCm (HIP 7.2) & Model Weights Verification</em></p>
+  <br/>
+  <img src="docs/images/evidence_amd_cloud_2.jpg" alt="AMD Cloud GPU Telemetry Verification 2" width="750" />
+  <p><em>Figure 3: AMD Developer Cloud Execution Telemetry — Direct GPU Allocation (`cuda:0`) & Qwen 2.5 Model Load</em></p>
+</div>
+
+---
+
 ## 3. Introduction to Core Capabilities
 
 ### 🧠🐱 1. Socratic Visual Tutor Agent (`KidoBot` / `Cat Co-Pilot`)

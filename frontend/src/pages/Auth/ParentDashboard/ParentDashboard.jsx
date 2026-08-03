@@ -322,6 +322,28 @@ const AiChildInsightsPanel = ({ child, completions }) => {
     const [loading, setLoading] = useState(!initialData);
     const [curriculum, setCurriculum] = useState(initialData);
 
+    const handleRefresh = async () => {
+        if (!child?.id) return;
+        setLoading(true);
+        try {
+            const childComps = completions[child.id] || [];
+            const data = await requestCurriculum({
+                childId: child.id,
+                completedLessons: childComps,
+                level: child.current_level || `Class ${child.numericLevel || 1}`,
+                totalXp: child.totalXp || (child.total_xp || 0),
+                totalCompleted: child.totalCompleted || childComps.length,
+                forceRefresh: true,
+            });
+            insightsCache[child.id] = data;
+            setCurriculum(data);
+        } catch (e) {
+            console.warn("Curriculum refresh error:", e);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
         if (!child?.id) return;
 
@@ -376,8 +398,13 @@ const AiChildInsightsPanel = ({ child, completions }) => {
                 borderRadius: 18, padding: '16px',
                 boxShadow: '0 4px 14px rgba(2,132,199,0.06)'
             }}>
-                <div style={{ fontWeight: 900, fontSize: '0.8rem', color: '#0284C7', marginBottom: 8, letterSpacing: '0.05em', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span>🧠</span> Performance Analysis &amp; Progress Summary
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <div style={{ fontWeight: 900, fontSize: '0.8rem', color: '#0284C7', letterSpacing: '0.05em', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span>🧠</span> Performance Analysis &amp; Progress Summary
+                    </div>
+                    <button onClick={handleRefresh} disabled={loading} style={{ background: '#FFFFFF', border: '1px solid #BAE6FD', color: '#0284C7', borderRadius: 8, padding: '3px 8px', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <FaSync className={loading ? "fa-spin-custom" : ""} size={10} /> Refresh AI
+                    </button>
                 </div>
                 <div style={{ fontSize: '0.85rem', color: '#0F172A', fontWeight: 600, lineHeight: 1.6, marginBottom: 12 }}>
                     {curriculum.learning_path_summary}
