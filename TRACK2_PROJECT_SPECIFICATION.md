@@ -123,10 +123,19 @@ To prove native execution on AMD Radeon / Instinct GPU hardware via ROCm within 
 - **VRAM Footprint:** <3.2 GB VRAM execution requirement.
 
 ### Local Deployment Plan
-1. **AMD Cloud Hosting:** Backend server runs inside the AMD Developer Cloud instance (`uvicorn main:app --host 0.0.0.0 --port 8000`).
-2. **Local GPU Inference Engine:** Language models run directly on AMD GPU hardware via `Transformers` → `ROCm` → `AMD GPU` (`DEVICE=rocm`).
-3. **ngrok Gateway:** Routes web client traffic securely over HTTPS (`https://khalilah-piteous-cortez.ngrok-free.dev`).
-4. **Fallback Resilience:** Features offline context-aware rule fallback to guarantee 100% uptime.
+1. **AMD Cloud Environment Setup:** Activate virtual environment and install backend dependencies:
+   ```bash
+   cd /workspace/workspace/KidoDev/backend
+   source /workspace/workspace/KidoDev/llm-env/bin/activate
+   pip install -r requirements.txt
+   ```
+2. **Backend Server Launch:** Start FastAPI server on port 8000:
+   ```bash
+   uvicorn main:app --host 0.0.0.0 --port 8000
+   ```
+3. **Local GPU Inference Engine:** Language models run directly on AMD GPU hardware via `Transformers` → `ROCm` → `AMD GPU` (`DEVICE=rocm`).
+4. **ngrok Gateway:** Routes web client traffic securely over HTTPS (`https://khalilah-piteous-cortez.ngrok-free.dev`).
+5. **Fallback Resilience:** Features offline context-aware rule fallback to guarantee 100% uptime.
 
 ---
 
