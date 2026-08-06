@@ -37,7 +37,7 @@ flowchart TB
     end
 
     subgraph Tunnel ["Secure Gateway"]
-        NgrokTunnel["ngrok Secure Tunnel\n(https://khalilah-.....-free.dev)"]
+        NgrokTunnel["ngrok Secure Tunnel\n(https://khalilah-.....ngrok-free.dev)"]
         ReactFrontend <-->|HTTPS / WSS| NgrokTunnel
     end
 
@@ -81,7 +81,7 @@ flowchart TB
 ```
 
 <div align="center">
-  <img src="docs/amd_direct_inference_architecture.png" alt="KidoDev Direct AMD Inference Architecture Diagram" width="850" />
+  <img src="docs/images/amd_direct_inference_architecture.png" alt="KidoDev Direct AMD Inference Architecture Diagram" width="850" />
   <p><em>Figure 1: KidoDev + AMD Developer Cloud Architecture — Direct Local AMD GPU Inference via ROCm Stack</em></p>
 </div>
 
@@ -134,7 +134,7 @@ To prove native execution on AMD Radeon / Instinct GPU hardware via ROCm within 
    uvicorn main:app --host 0.0.0.0 --port 8000
    ```
 3. **Local GPU Inference Engine:** Language models run directly on AMD GPU hardware via `Transformers` → `ROCm` → `AMD GPU` (`DEVICE=rocm`).
-4. **ngrok Gateway:** Routes web client traffic securely over HTTPS (`https://khalilah-...-free.dev`).
+4. **ngrok Gateway:** Routes web client traffic securely over HTTPS (`https://khalilah-......ngrok-free.dev`).
 5. **Fallback Resilience:** Features offline context-aware rule fallback to guarantee 100% uptime.
 
 ---
@@ -169,8 +169,8 @@ To achieve sub-second response times and high throughput on AMD Radeon GPUs (and
 ```env
 VITE_SUPABASE_URL=https://cvdbnxeqbirrdyfwrgso.supabase.co
 VITE_SUPABASE_ANON_KEY=sb_publishable_oh-OLBt29AfkWdhg5zIOrg_nf1cva3z
-VITE_AGENT_BACKEND_URL=https://khalilah-piteous-cortez.ngrok-free.dev
-VITE_BACKEND_WS_URL=wss://khalilah-piteous-cortez.ngrok-free.dev
+VITE_AGENT_BACKEND_URL=https://khalilah-...ngrok-free.dev
+VITE_BACKEND_WS_URL=wss://khalilah-...ngrok-free.dev
 ```
 
 ### **Backend (`backend/.env`)**
