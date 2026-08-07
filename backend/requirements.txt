@@ -17,6 +17,9 @@ supabase>=2.10.0
 # Utilities
 python-multipart>=0.0.20
 
+# Host runtime telemetry (CPU/memory reported by /device endpoints)
+psutil>=6.0.0
+
 # Local Inference Engine (AMD Developer Cloud ROCm PyTorch Environment)
 transformers>=4.45.0
 accelerate>=1.0.0

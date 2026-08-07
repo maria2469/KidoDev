@@ -8,6 +8,7 @@ from typing import Dict, Any, List
 from models.schemas import BusinessInsightsRequest, BusinessInsightsResponse
 from inference.qwen_client import get_completion
 from memory.long_term import log_agent_action
+from telemetry.device_registry import adaptation_for
 
 # ─── System Prompt for Qwen 2.5 ──────────────────────────────────────────────
 SYSTEM_PROMPT = """You are the Chief Business Officer (CBO) & Senior EdTech Growth Strategist for KidoDev.
@@ -36,8 +37,9 @@ Produce an executive briefing strictly as valid JSON matching this schema:
 Rule: Do NOT include any markdown codeblocks or conversational text outside the JSON object.
 """
 
-async def run(req: BusinessInsightsRequest) -> BusinessInsightsResponse:
+async def run(req: BusinessInsightsRequest, adaptation: Dict[str, Any] = None) -> BusinessInsightsResponse:
     """Analyze business metrics and return C-Suite level executive strategy recommendations."""
+    adaptation = adaptation or adaptation_for({})
     reasoning_trace = []
     reasoning_trace.append(f"Ingested live operational telemetry: {req.total_students} total students, {req.active_subscriptions} active subscriptions, PKR {req.total_revenue} revenue")
     
@@ -63,7 +65,7 @@ Provide a deep C-Suite level JSON briefing evaluating unit economics, conversion
             system_prompt=SYSTEM_PROMPT,
             user_prompt=prompt,
             temperature=0.3,
-            max_tokens=700
+            max_tokens=min(700, adaptation["max_tokens"] * 2),
         )
         llm_output = res.get("text", "")
         reasoning_trace.append(f"Executive inference model completed via {res.get('provider', 'engine')}")

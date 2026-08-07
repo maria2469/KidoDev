@@ -10,6 +10,7 @@ import {
   getSessionId, getChildId, getSessionState, addToConversation,
   getConversationHistory, incrementHintCount,
 } from './memory/AgentMemoryStore';
+import { registerDevice, getDeviceId, getAdaptation } from './device/DeviceTelemetry';
 
 const BACKEND_URL = import.meta.env.VITE_AGENT_BACKEND_URL || 'http://localhost:8000';
 const isNgrok = BACKEND_URL.includes('ngrok');
@@ -57,11 +58,14 @@ async function checkBackend() {
 setInterval(() => { _backendAvailable = null; }, 60_000);
 
 // ─── Generic Agent Request ─────────────────────────────────────────────────────
+// Every agent call carries this browser's device_id so the backend adapts the
+// run to the caller's hardware and records it in that device's own state.
 async function postAgent(endpoint, body) {
+  if (!getDeviceId()) await registerDevice();
   const res = await fetch(`${BACKEND_URL}${endpoint}`, {
     method: 'POST',
     headers: AGENT_HEADERS,
-    body: JSON.stringify(body),
+    body: JSON.stringify({ device_id: getDeviceId(), ...body }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -125,6 +129,8 @@ export async function requestHint({ workspaceBlocks, objective, lessonId, userMe
       latencyMs: result.latency_ms || 0,
       gpuType: result.gpu_type || 'Qwen 2.5 on AMD GPU',
       agentMemoryNote: result.agent_memory_note || null,
+      deviceTier: result.device_tier || null,
+      episodeId: result.episode_id || null,
     };
   } catch (err) {
     console.error('[AgentOrchestrator] TutorAgent error:', err);
@@ -145,6 +151,8 @@ async function _fallbackHint(workspaceBlocks, objective, userMessage = null) {
       latencyMs: 12,
       gpuType: 'Qwen 2.5 on AMD GPU',
       agentMemoryNote: null,
+      deviceTier: getAdaptation()?.tier || null,
+      episodeId: null,
     };
   } catch {
     return {
@@ -156,6 +164,8 @@ async function _fallbackHint(workspaceBlocks, objective, userMessage = null) {
       latencyMs: 10,
       gpuType: 'Qwen 2.5 on AMD GPU',
       agentMemoryNote: null,
+      deviceTier: getAdaptation()?.tier || null,
+      episodeId: null,
     };
   }
 }

@@ -11,6 +11,7 @@ from inference import qwen_client
 from memory.long_term import load_memory, log_agent_action
 from tools.registry import get_all_lessons, get_completed_lessons, get_student_profile
 from models.schemas import CurriculumRequest, CurriculumResponse
+from telemetry.device_registry import adaptation_for
 
 
 # ─── Homework Bank ────────────────────────────────────────────────────────────
@@ -236,8 +237,9 @@ def _generate_homework_from_weaknesses(weak_blocks: List[str], helped_map: Dict[
     return homework
 
 
-async def run(req: CurriculumRequest) -> CurriculumResponse:
-    """Main entry point for CurriculumPlannerAgent."""
+async def run(req: CurriculumRequest, adaptation: Dict[str, Any] = None) -> CurriculumResponse:
+    """Main entry point for CurriculumPlannerAgent. `adaptation` tunes the run to the caller's device."""
+    adaptation = adaptation or adaptation_for({})
 
     print(f"\n[CurriculumAgent] Executing learning path synthesis for child: '{req.child_id}'")
     reasoning_trace = []
@@ -320,7 +322,7 @@ Create a personalized curriculum plan for this student. Recommend 3-5 specific u
     result = await qwen_client.get_completion(
         system_prompt=SYSTEM_PROMPT,
         user_prompt=user_prompt,
-        max_tokens=1024,
+        max_tokens=min(1024, adaptation["max_tokens"] * 2),
         temperature=0.4,
     )
 

@@ -22,6 +22,7 @@ load_dotenv()
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routers.agent_routes import router as agent_router
+from routers.device_routes import router as device_router
 from inference import qwen_client
 
 # ─── Deploy Mode ──────────────────────────────────────────────────────────────
@@ -54,6 +55,7 @@ app.add_middleware(
 # ─── Routers ──────────────────────────────────────────────────────────────────
 
 app.include_router(agent_router)
+app.include_router(device_router)
 
 # ─── Root & Health ────────────────────────────────────────────────────────────
 

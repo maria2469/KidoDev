@@ -139,6 +139,43 @@ JSON Response → React Frontend & Supabase Persistence
 
 ---
 
+## 🖥️ Per-Device Telemetry & Adaptive Agents (multi-judge demos)
+
+Every visitor's browser is its own tenant. On first load the frontend fingerprints the
+machine it is running on (CPU threads, RAM, WebGL GPU, screen, network, battery,
+reduced-motion) and registers it with the backend, which returns a `device_id` and an
+**adaptation profile**. That `device_id` rides along with every agent request, so two
+judges hitting the same backend from a workstation and a phone get *different* agent
+behaviour and *completely separate* telemetry, episodes and memory.
+
+| Tier | Triggered by | Agent behaviour |
+|------|--------------|-----------------|
+| `high` | ≥8 threads, ≥8 GB RAM, hardware GPU | 512 tokens, 10 turns of history, full reasoning trace, full animations, 2s telemetry poll |
+| `balanced` | mid-range laptops/tablets | 320 tokens, 6 turns, summary trace, reduced animations, 4s poll |
+| `lite` | mobile, ≤4 GB RAM, software GPU, slow network, low battery | 192 tokens, 3 turns, minimal trace, animations off, 8s poll |
+
+Live state is in-process, keyed by `device_id`, and evicted after `DEVICE_TTL_SECONDS`
+(default 6h) of inactivity — nothing leaks between visitors.
+
+### Device endpoints
+
+| Method | Route | Purpose |
+|--------|-------|---------|
+| `POST` | `/device/register` | Register/refresh a device profile → `device_id` + adaptation + host runtime |
+| `POST` | `/device/{id}/heartbeat` | Push live browser metrics (FPS, JS heap, battery, network, page) |
+| `GET` | `/device/{id}/telemetry` | This device's profile, adaptation, counters, recent episodes + shared host CPU/GPU |
+| `GET` | `/device/{id}/episodes` | This device's agent episode log |
+| `GET` | `/device/{id}/memory` | This device's conversation turns and observations |
+| `DELETE` | `/device/{id}/memory` | Wipe this device's episodes/memory (keeps the id) |
+| `DELETE` | `/device/{id}` | Forget the device entirely |
+| `GET` | `/device` | All currently active devices + host runtime (demo/ops view) |
+
+In the UI, the floating **My Device** badge (bottom-right) opens a live panel with the
+visitor's own hardware, browser metrics, chosen agent tier and the reasons for it,
+episode log, and conversation memory.
+
+---
+
 ## 🚀 Quick Start & Installation Guide
 
 ### **1. Backend Setup (AMD Developer Cloud / ROCm Host)**

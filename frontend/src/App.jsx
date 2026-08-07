@@ -6,6 +6,7 @@ import Footer from './components/Footer';
 import ErrorBoundary from './components/ErrorBoundary';
 import ProtectedRoute from './components/ProtectedRoute';
 import SpriteLoader from './components/Loader/SpriteLoader';
+import DeviceTelemetryPanel from './components/DeviceTelemetryPanel';
 import { ThemeProvider } from './utils/ThemeContext';
 
 // Lazy-loaded pages for optimal bundle size & initial load speed
@@ -94,6 +95,7 @@ function App() {
             } />
           </Routes>
         </Suspense>
+        <DeviceTelemetryPanel />
       </Router>
     </ThemeProvider>
   );

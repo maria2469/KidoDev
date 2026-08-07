@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List, Any, Dict
 
 
@@ -9,9 +9,62 @@ class BlockInfo(BaseModel):
     count: int = 1
 
 
+# ─── Device Telemetry ─────────────────────────────────────────────────────────
+
+class DeviceProfile(BaseModel):
+    """Hardware/browser fingerprint reported by each visitor's own device."""
+    device_id: Optional[str] = None
+    label: Optional[str] = None
+    os_name: Optional[str] = None
+    browser: Optional[str] = None
+    user_agent: Optional[str] = None
+    cpu_cores: Optional[int] = None
+    device_memory_gb: Optional[float] = None
+    gpu_vendor: Optional[str] = None
+    gpu_renderer: Optional[str] = None
+    screen_width: Optional[int] = None
+    screen_height: Optional[int] = None
+    pixel_ratio: Optional[float] = None
+    is_mobile: bool = False
+    touch_support: bool = False
+    network_type: Optional[str] = None
+    downlink_mbps: Optional[float] = None
+    prefers_reduced_motion: bool = False
+    battery_level: Optional[float] = None
+    battery_charging: Optional[bool] = None
+    timezone: Optional[str] = None
+    language: Optional[str] = None
+
+
+class DeviceRegisterRequest(BaseModel):
+    device_id: Optional[str] = None
+    profile: DeviceProfile = Field(default_factory=DeviceProfile)
+
+
+class DeviceRegisterResponse(BaseModel):
+    device_id: str
+    profile: Dict[str, Any]
+    adaptation: Dict[str, Any]
+    registered_at: float
+    host: Dict[str, Any]
+
+
+class DeviceHeartbeatRequest(BaseModel):
+    """Live client-side metrics sampled in the visitor's browser."""
+    fps: Optional[float] = None
+    js_heap_used_mb: Optional[float] = None
+    js_heap_limit_mb: Optional[float] = None
+    battery_level: Optional[float] = None
+    battery_charging: Optional[bool] = None
+    downlink_mbps: Optional[float] = None
+    network_type: Optional[str] = None
+    active_page: Optional[str] = None
+
+
 # ─── Tutor Agent ──────────────────────────────────────────────────────────────
 
 class TutorRequest(BaseModel):
+    device_id: Optional[str] = None
     child_id: str
     session_id: str
     lesson_id: str
@@ -31,6 +84,8 @@ class TutorResponse(BaseModel):
     latency_ms: int = 0
     gpu_type: str = "AMD ROCm GPU (Qwen2.5-1.5B)"
     agent_memory_note: Optional[str] = None          # e.g. "I remember you struggled with loops"
+    device_tier: Optional[str] = None                # tier the answer was adapted to
+    episode_id: Optional[str] = None                 # this run's entry in the device episode log
 
 
 
@@ -48,6 +103,7 @@ class HomeworkAssignment(BaseModel):
 
 
 class CurriculumRequest(BaseModel):
+    device_id: Optional[str] = None
     child_id: str
     completed_lessons: List[Dict[str, Any]] = []
     weak_block_types: List[str] = []
@@ -70,6 +126,7 @@ class CurriculumResponse(BaseModel):
 # ─── Business Insights Agent ──────────────────────────────────────────────────
 
 class BusinessInsightsRequest(BaseModel):
+    device_id: Optional[str] = None
     total_students: int = 0
     active_subscriptions: int = 0
     total_revenue: float = 0.0

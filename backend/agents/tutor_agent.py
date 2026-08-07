@@ -14,6 +14,7 @@ from tools.registry import (
     get_agent_memory, get_student_profile,
 )
 from models.schemas import TutorRequest, TutorResponse
+from telemetry.device_registry import adaptation_for
 
 
 SYSTEM_PROMPT = """You are KidoBot & Cat Co-Pilot — a warm, encouraging Socratic Visual AI Coding Tutor and Co-Pilot for children aged 6-14.
@@ -34,8 +35,12 @@ CRITICAL RULES:
 """
 
 
-async def run(req: TutorRequest) -> TutorResponse:
-    """Main entry point for TutorAgent."""
+TRACE_DEPTHS = {"minimal": 2, "summary": 4, "full": 50}
+
+
+async def run(req: TutorRequest, adaptation: Dict[str, Any] = None) -> TutorResponse:
+    """Main entry point for TutorAgent. `adaptation` tunes the run to the caller's device."""
+    adaptation = adaptation or adaptation_for({})
 
     # ── 1. Load context in parallel ──────────────────────────────────────────
     workspace_info = await get_workspace_blocks(req.workspace_blocks)
@@ -74,7 +79,7 @@ async def run(req: TutorRequest) -> TutorResponse:
 
     # ── 6. Build messages ────────────────────────────────────────────────────
     messages = []
-    for m in prior_history[-6:]:
+    for m in prior_history[-adaptation["history_turns"]:]:
         messages.append(m)
 
     child_question = req.user_message or "I need a hint for my next block."
@@ -105,8 +110,8 @@ Respond in this exact JSON format:
     result = await qwen_client.get_completion(
         system_prompt=SYSTEM_PROMPT,
         user_prompt=context_block,
-        max_tokens=512,
-        temperature=0.7,
+        max_tokens=adaptation["max_tokens"],
+        temperature=adaptation["temperature"],
     )
 
     raw = result.get("text", "").strip()
@@ -158,15 +163,18 @@ Respond in this exact JSON format:
         latency_ms=latency_val,
     )
 
+    trace_limit = TRACE_DEPTHS.get(adaptation["reasoning_trace_depth"], 50)
+
     return TutorResponse(
         hint_message=hint_message,
         next_block_type=next_block_type,
-        reasoning_trace=reasoning_trace,
+        reasoning_trace=reasoning_trace[-trace_limit:],
         tools_used=["get_workspace_blocks", "get_solution_xml", "get_agent_memory"],
         tokens_generated=tokens_out,
         latency_ms=latency_val,
-        gpuType=result.get("gpu_type", "AMD ROCm GPU (Qwen2.5-1.5B)"),
+        gpu_type=result.get("gpu_type", "AMD ROCm GPU (Qwen2.5-1.5B)"),
         agent_memory_note=memory_note,
+        device_tier=adaptation["tier"],
     )
 
 
